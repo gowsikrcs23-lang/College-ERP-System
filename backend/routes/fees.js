@@ -13,7 +13,7 @@ const router = express.Router();
 
 // Routes
 router.post('/', auth, authorize('accountant'), createFeeRecord);
-router.get('/', auth, authorize('admin', 'accountant', 'faculty'), getAllFees);
+router.get('/', auth, authorize('admin', 'management', 'accountant', 'faculty'), getAllFees);
 router.get('/student/:studentId', auth, getStudentFees);
 router.get('/:id', auth, getFeeById);
 router.post('/:feeId/payment', auth, authorize('accountant'), makePayment);

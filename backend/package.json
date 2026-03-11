@@ -7,7 +7,8 @@
     "start": "nodemon server.js",
     "seed": "node utils/seedData.js",
     "update-db": "node utils/updateDatabase.js",
-    "create-hod": "node utils/createHOD.js"
+    "create-hod": "node utils/createHOD.js",
+    "generate-timetables": "node utils/generateDepartmentTimetables.js"
   },
   "dependencies": {
     "express": "^4.18.2",

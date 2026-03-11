@@ -10,10 +10,10 @@ const { auth, authorize } = require('../middleware/auth');
 
 const router = express.Router();
 
-router.post('/', auth, authorize('admin'), createExamSchedule);
+router.post('/', auth, authorize('admin', 'management'), createExamSchedule);
 router.get('/', auth, getAllExamSchedules);
 router.get('/:id', auth, getExamScheduleById);
-router.put('/:id', auth, authorize('admin'), updateExamSchedule);
-router.delete('/:id', auth, authorize('admin'), deleteExamSchedule);
+router.put('/:id', auth, authorize('admin', 'management'), updateExamSchedule);
+router.delete('/:id', auth, authorize('admin', 'management'), deleteExamSchedule);
 
 module.exports = router;

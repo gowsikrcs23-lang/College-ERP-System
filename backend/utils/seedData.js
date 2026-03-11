@@ -34,6 +34,13 @@ const seedData = async () => {
       role: 'admin'
     });
 
+    // Create Management User
+    const managementUser = await User.create({
+      email: 'management@college.edu',
+      password: 'management123',
+      role: 'management'
+    });
+
     // Create Accountant User
     const accountantUser = await User.create({
       email: 'accountant@college.edu',
@@ -172,9 +179,10 @@ const seedData = async () => {
     console.log('Sample data seeded successfully!');
     console.log('\nLogin Credentials:');
     console.log('Admin: admin@college.edu / admin123');
+    console.log('Management: management@college.edu / management123');
     console.log('Accountant: accountant@college.edu / accountant123');
     console.log('Admission Office: admission@college.edu / admission123');
-    console.log('\nNote: Faculty and Student accounts must be created by Admin through the system.');
+    console.log('\nNote: Faculty and Student accounts must be created by Admin/Management through the system.');
 
   } catch (error) {
     console.error('Error seeding data:', error);

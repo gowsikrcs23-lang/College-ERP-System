@@ -11,12 +11,12 @@ const notificationSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['general', 'academic', 'fee', 'exam', 'attendance'],
+    enum: ['general', 'academic', 'fee', 'exam', 'attendance', 'meeting', 'announcement', 'staff', 'admission', 'payment', 'financial', 'reminder', 'college'],
     required: true
   },
   targetAudience: {
     type: String,
-    enum: ['all', 'students', 'faculty', 'department'],
+    enum: ['all', 'students', 'faculty', 'admission', 'accountant', 'department'],
     required: true
   },
   department: {
@@ -38,7 +38,13 @@ const notificationSchema = new mongoose.Schema({
     type: Date
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  indexes: [
+    { isActive: 1, targetAudience: 1 },
+    { isActive: 1, createdAt: -1 },
+    { createdBy: 1, isActive: 1 },
+    { targetAudience: 1, department: 1, isActive: 1 }
+  ]
 });
 
 module.exports = mongoose.model('Notification', notificationSchema);

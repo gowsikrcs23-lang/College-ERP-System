@@ -1,4 +1,6 @@
 const Timetable = require('../models/Timetable');
+const Student = require('../models/Student');
+const Faculty = require('../models/Faculty');
 
 const createTimetable = async (req, res) => {
   try {
@@ -14,14 +16,42 @@ const createTimetable = async (req, res) => {
 
 const getTimetables = async (req, res) => {
   try {
-    const { department, semester } = req.query;
+    const { department, semester, subject } = req.query;
     const filter = {};
-    
-    if (department) filter.department = department;
-    if (semester) filter.semester = semester;
 
-    const timetables = await Timetable.find(filter)
+    if (req.user.role === 'student') {
+      const studentProfile = await Student.findById(req.user.profile).select('department semester');
+      if (!studentProfile) {
+        return res.status(404).json({ message: 'Student profile not found' });
+      }
+      filter.department = studentProfile.department;
+      filter.semester = studentProfile.semester;
+    } else if (req.user.role === 'faculty') {
+      const facultyProfile = await Faculty.findById(req.user.profile).select('department');
+      if (!facultyProfile) {
+        return res.status(404).json({ message: 'Faculty profile not found' });
+      }
+      // Faculty can teach across departments; apply optional filters only.
+      if (department) filter.department = department;
+      if (semester) filter.semester = Number(semester);
+    } else {
+      if (department) filter.department = department;
+      if (semester) filter.semester = Number(semester);
+    }
+
+    let timetables = await Timetable.find(filter)
       .populate('schedule.periods.faculty', 'firstName lastName');
+
+    if (subject) {
+      const normalizedSubject = String(subject).trim().toLowerCase();
+      timetables = timetables.filter((tt) =>
+        (tt.schedule || []).some((day) =>
+          (day.periods || []).some((period) =>
+            String(period.subject || '').trim().toLowerCase() === normalizedSubject
+          )
+        )
+      );
+    }
 
     res.json(timetables);
   } catch (error) {

@@ -24,10 +24,10 @@ const facultyValidation = [
 ];
 
 // Routes
-router.get('/', auth, authorize('admin', 'hod'), getAllFaculty);
+router.get('/', auth, authorize('admin', 'management', 'hod'), getAllFaculty);
 router.get('/:id', auth, getFacultyById);
-router.post('/', auth, authorize('admin', 'hod'), facultyValidation, validate, createFaculty);
-router.put('/:id', auth, authorize('admin', 'hod'), updateFaculty);
-router.delete('/:id', auth, authorize('admin', 'hod'), deleteFaculty);
+router.post('/', auth, authorize('admin', 'management', 'hod'), facultyValidation, validate, createFaculty);
+router.put('/:id', auth, authorize('admin', 'management', 'hod'), updateFaculty);
+router.delete('/:id', auth, authorize('admin', 'management', 'hod'), deleteFaculty);
 
 module.exports = router;

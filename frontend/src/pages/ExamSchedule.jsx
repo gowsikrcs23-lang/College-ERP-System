@@ -50,12 +50,15 @@ const departmentSubjects = {
 const ExamSchedule = () => {
   const { user } = useAuth();
   const [schedules, setSchedules] = useState([]);
+  const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState(null);
   const [filterDept, setFilterDept] = useState('');
   const [filterSem, setFilterSem] = useState('');
   const [formData, setFormData] = useState({
+    scheduleFor: 'all_departments',
+    targetStudent: '',
     department: '',
     semester: '',
     examType: 'midterm',
@@ -63,6 +66,8 @@ const ExamSchedule = () => {
     exams: []
   });
   const [examEntry, setExamEntry] = useState({
+    department: '',
+    semester: '',
     subject: '',
     date: '',
     startTime: '',
@@ -72,7 +77,19 @@ const ExamSchedule = () => {
 
   useEffect(() => {
     fetchSchedules();
+    if (user?.role === 'management') {
+      fetchStudents();
+    }
   }, []);
+
+  const fetchStudents = async () => {
+    try {
+      const response = await axios.get('/api/students');
+      setStudents(response.data || []);
+    } catch (error) {
+      toast.error('Failed to fetch students');
+    }
+  };
 
   const fetchSchedules = async () => {
     try {
@@ -95,6 +112,14 @@ const ExamSchedule = () => {
   };
 
   const handleAddExam = () => {
+    const sourceDepartment = formData.scheduleFor === 'all_departments' ? examEntry.department : formData.department;
+    const sourceSemester = formData.scheduleFor === 'all_departments' ? examEntry.semester : formData.semester;
+
+    if (!sourceDepartment || !sourceSemester) {
+      toast.error('Please select department and semester for this exam');
+      return;
+    }
+
     if (!examEntry.subject || !examEntry.date || !examEntry.startTime || !examEntry.endTime || !examEntry.room) {
       toast.error('Please fill all exam details');
       return;
@@ -102,10 +127,19 @@ const ExamSchedule = () => {
     
     setFormData({
       ...formData,
-      exams: [...formData.exams, examEntry]
+      exams: [
+        ...formData.exams,
+        {
+          ...examEntry,
+          department: sourceDepartment,
+          semester: Number(sourceSemester)
+        }
+      ]
     });
     
     setExamEntry({
+      department: formData.scheduleFor === 'all_departments' ? '' : formData.department,
+      semester: formData.scheduleFor === 'all_departments' ? '' : formData.semester,
       subject: '',
       date: '',
       startTime: '',
@@ -124,6 +158,11 @@ const ExamSchedule = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    if (formData.scheduleFor === 'specific' && !formData.targetStudent) {
+      toast.error('Please select a student for specific schedule');
+      return;
+    }
+
     if (formData.exams.length === 0) {
       toast.error('Please add at least one exam');
       return;
@@ -160,6 +199,8 @@ const ExamSchedule = () => {
 
   const resetForm = () => {
     setFormData({
+      scheduleFor: 'all_departments',
+      targetStudent: '',
       department: '',
       semester: '',
       examType: 'midterm',
@@ -167,6 +208,8 @@ const ExamSchedule = () => {
       exams: []
     });
     setExamEntry({
+      department: '',
+      semester: '',
       subject: '',
       date: '',
       startTime: '',
@@ -179,6 +222,8 @@ const ExamSchedule = () => {
   const openEditModal = (schedule) => {
     setEditingSchedule(schedule);
     setFormData({
+      scheduleFor: schedule.scheduleFor || 'all_departments',
+      targetStudent: schedule.targetStudent?._id || schedule.targetStudent || '',
       department: schedule.department,
       semester: schedule.semester,
       examType: schedule.examType,
@@ -190,11 +235,16 @@ const ExamSchedule = () => {
 
   const getExamTypeColor = (type) => {
     const colors = {
-      midterm: 'bg-blue-100 text-blue-800 border-blue-200',
-      final: 'bg-purple-100 text-purple-800 border-purple-200',
-      internal: 'bg-green-100 text-green-800 border-green-200'
+      'Periodical Test 1': 'bg-blue-100 text-blue-800 border-blue-200',
+      'Periodical Test 2': 'bg-indigo-100 text-indigo-800 border-indigo-200',
+      'Periodical Test 3': 'bg-purple-100 text-purple-800 border-purple-200',
+      'Mid-Term': 'bg-yellow-100 text-yellow-800 border-yellow-200',
+      'End Semester': 'bg-red-100 text-red-800 border-red-200',
+      'midterm': 'bg-yellow-100 text-yellow-800 border-yellow-200',
+      'final': 'bg-red-100 text-red-800 border-red-200',
+      'internal': 'bg-green-100 text-green-800 border-green-200'
     };
-    return colors[type] || colors.midterm;
+    return colors[type] || 'bg-blue-100 text-blue-800 border-blue-200';
   };
 
   const filteredSchedules = schedules.filter(schedule => {
@@ -202,6 +252,8 @@ const ExamSchedule = () => {
     if (filterSem && schedule.semester !== parseInt(filterSem)) return false;
     return true;
   });
+
+  const selectedStudent = students.find(s => s._id === formData.targetStudent);
 
   if (loading) {
     return (
@@ -220,7 +272,7 @@ const ExamSchedule = () => {
             <h1 className="text-3xl font-bold mb-2">Examination Schedule</h1>
             <p className="text-blue-100">Academic Year 2024-25</p>
           </div>
-          {user?.role === 'admin' && (
+          {user?.role === 'management' && (
             <button
               onClick={() => {
                 resetForm();
@@ -236,7 +288,7 @@ const ExamSchedule = () => {
       </div>
 
       {/* Info Banner for non-admin */}
-      {user?.role !== 'admin' && (
+      {user?.role !== 'management' && (
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500 rounded-lg p-4 shadow-sm">
           <div className="flex items-center">
             <BookOpen className="h-5 w-5 text-blue-600 mr-3" />
@@ -248,7 +300,7 @@ const ExamSchedule = () => {
       )}
 
       {/* Filters */}
-      {user?.role === 'admin' && schedules.length > 0 && (
+      {user?.role === 'management' && schedules.length > 0 && (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
           <div className="flex items-center gap-4">
             <Filter className="h-5 w-5 text-gray-500" />
@@ -296,7 +348,7 @@ const ExamSchedule = () => {
           </div>
           <h3 className="text-xl font-semibold text-gray-900 mb-2">No Exam Schedules Found</h3>
           <p className="text-gray-600 mb-4">
-            {user?.role === 'admin' 
+            {user?.role === 'management' 
               ? 'Create your first exam schedule to get started' 
               : 'No exam schedules have been published yet'}
           </p>
@@ -318,9 +370,11 @@ const ExamSchedule = () => {
                       <h3 className="text-xl font-bold text-gray-900">
                         {schedule.department}
                       </h3>
-                      <span className="px-3 py-1 bg-blue-100 text-blue-800 text-sm font-semibold rounded-full">
-                        Semester {schedule.semester}
-                      </span>
+                      {schedule.scheduleFor !== 'all_departments' && (
+                        <span className="px-3 py-1 bg-blue-100 text-blue-800 text-sm font-semibold rounded-full">
+                          Semester {schedule.semester}
+                        </span>
+                      )}
                       <span className={`px-3 py-1 text-sm font-semibold rounded-full border ${getExamTypeColor(schedule.examType)}`}>
                         {schedule.examType.charAt(0).toUpperCase() + schedule.examType.slice(1)} Exam
                       </span>
@@ -329,8 +383,13 @@ const ExamSchedule = () => {
                       <Calendar className="h-4 w-4" />
                       Academic Year: {schedule.academicYear}
                     </p>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {schedule.scheduleFor === 'specific' && schedule.targetStudent
+                        ? `For: ${schedule.targetStudent.firstName} ${schedule.targetStudent.lastName} (${schedule.targetStudent.studentId})`
+                        : 'For: All Departments'}
+                    </p>
                   </div>
-                  {user?.role === 'admin' && (
+                  {user?.role === 'management' && (
                     <div className="flex gap-2">
                       <button
                         onClick={() => openEditModal(schedule)}
@@ -374,9 +433,14 @@ const ExamSchedule = () => {
                     {schedule.exams.map((exam, index) => (
                       <tr key={index} className="hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-4">
-                          <div className="flex items-center">
-                            <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
-                            <span className="text-sm font-medium text-gray-900">{exam.subject}</span>
+                          <div>
+                            <div className="flex items-center">
+                              <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
+                              <span className="text-sm font-medium text-gray-900">{exam.subject}</span>
+                            </div>
+                            {exam.department && exam.semester && (
+                              <p className="text-xs text-gray-500 mt-1">{exam.department} • Sem {exam.semester}</p>
+                            )}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -433,12 +497,61 @@ const ExamSchedule = () => {
               {/* Basic Info */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Schedule For *</label>
+                  <select
+                    className="input-field"
+                    value={formData.scheduleFor}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      scheduleFor: e.target.value,
+                      targetStudent: e.target.value === 'all_departments' ? '' : formData.targetStudent,
+                      department: e.target.value === 'all_departments' ? '' : formData.department,
+                      semester: e.target.value === 'all_departments' ? '' : formData.semester
+                    })}
+                    required
+                  >
+                    <option value="all_departments">All Departments</option>
+                    <option value="specific">Specific Student</option>
+                  </select>
+                </div>
+
+                {formData.scheduleFor === 'specific' ? (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Student *</label>
+                    <select
+                      className="input-field"
+                      value={formData.targetStudent}
+                      onChange={(e) => {
+                        const student = students.find(s => s._id === e.target.value);
+                        setFormData({
+                          ...formData,
+                          targetStudent: e.target.value,
+                          department: student?.department || '',
+                          semester: student?.semester || ''
+                        });
+                      }}
+                      required
+                    >
+                      <option value="">Select Student</option>
+                      {students.map(student => (
+                        <option key={student._id} value={student._id}>
+                          {student.firstName} {student.lastName} ({student.studentId})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <div></div>
+                )}
+
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Department *</label>
                   <select
                     className="input-field"
                     value={formData.department}
                     onChange={(e) => setFormData({...formData, department: e.target.value})}
-                    required
+                    required={formData.scheduleFor !== 'all_departments'}
+                    disabled={formData.scheduleFor === 'specific' || formData.scheduleFor === 'all_departments'}
                   >
                     <option value="">Select Department</option>
                     <option value="Computer Science">Computer Science</option>
@@ -454,7 +567,8 @@ const ExamSchedule = () => {
                     className="input-field"
                     value={formData.semester}
                     onChange={(e) => setFormData({...formData, semester: e.target.value})}
-                    required
+                    required={formData.scheduleFor !== 'all_departments'}
+                    disabled={formData.scheduleFor === 'specific' || formData.scheduleFor === 'all_departments'}
                   >
                     <option value="">Select Semester</option>
                     {[1,2,3,4,5,6,7,8].map(sem => (
@@ -471,9 +585,11 @@ const ExamSchedule = () => {
                     onChange={(e) => setFormData({...formData, examType: e.target.value})}
                     required
                   >
-                    <option value="midterm">Midterm Examination</option>
-                    <option value="final">Final Examination</option>
-                    <option value="internal">Internal Assessment</option>
+                    <option value="Periodical Test 1">Periodical Test 1</option>
+                    <option value="Periodical Test 2">Periodical Test 2</option>
+                    <option value="Periodical Test 3">Periodical Test 3</option>
+                    <option value="Mid-Term">Mid-Term</option>
+                    <option value="End Semester">End Semester</option>
                   </select>
                 </div>
 
@@ -490,6 +606,12 @@ const ExamSchedule = () => {
                 </div>
               </div>
 
+              {formData.scheduleFor === 'specific' && selectedStudent && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-900">
+                  Target student department/semester: {selectedStudent.department} / Semester {selectedStudent.semester}
+                </div>
+              )}
+
               {/* Add Exams Section */}
               <div className="border-t pt-6">
                 <h4 className="font-semibold text-gray-900 mb-4 flex items-center">
@@ -497,19 +619,62 @@ const ExamSchedule = () => {
                   Add Examination Details
                 </h4>
                 <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-                  <div className="grid grid-cols-5 gap-3">
+                  <div className="grid grid-cols-7 gap-3">
+                    {formData.scheduleFor === 'all_departments' ? (
+                      <>
+                        <select
+                          className="input-field"
+                          value={examEntry.department}
+                          onChange={(e) => setExamEntry({...examEntry, department: e.target.value, semester: '', subject: ''})}
+                        >
+                          <option value="">Select Department</option>
+                          <option value="Computer Science">Computer Science</option>
+                          <option value="Electronics">Electronics</option>
+                          <option value="Mechanical">Mechanical</option>
+                          <option value="Civil">Civil</option>
+                        </select>
+                        <select
+                          className="input-field"
+                          value={examEntry.semester}
+                          onChange={(e) => setExamEntry({...examEntry, semester: e.target.value, subject: ''})}
+                          disabled={!examEntry.department}
+                        >
+                          <option value="">Select Semester</option>
+                          {[1,2,3,4,5,6,7,8].map(sem => (
+                            <option key={sem} value={sem}>Sem {sem}</option>
+                          ))}
+                        </select>
+                      </>
+                    ) : (
+                      <>
+                        <input
+                          className="input-field bg-gray-100"
+                          value={formData.department || ''}
+                          readOnly
+                        />
+                        <input
+                          className="input-field bg-gray-100"
+                          value={formData.semester ? `Semester ${formData.semester}` : ''}
+                          readOnly
+                        />
+                      </>
+                    )}
                     <select
                       className="input-field"
                       value={examEntry.subject}
                       onChange={(e) => setExamEntry({...examEntry, subject: e.target.value})}
-                      disabled={!formData.department || !formData.semester}
+                      disabled={!(
+                        (formData.scheduleFor === 'all_departments' ? examEntry.department : formData.department) &&
+                        (formData.scheduleFor === 'all_departments' ? examEntry.semester : formData.semester)
+                      )}
                     >
                       <option value="">Select Subject</option>
-                      {formData.department && formData.semester && 
-                        departmentSubjects[formData.department]?.[formData.semester]?.map(subject => (
-                          <option key={subject} value={subject}>{subject}</option>
-                        ))
-                      }
+                      {(formData.scheduleFor === 'all_departments'
+                        ? departmentSubjects[examEntry.department]?.[examEntry.semester]
+                        : departmentSubjects[formData.department]?.[formData.semester]
+                      )?.map(subject => (
+                        <option key={subject} value={subject}>{subject}</option>
+                      ))}
                     </select>
                     <input
                       type="date"
@@ -561,6 +726,7 @@ const ExamSchedule = () => {
                         <div className="flex-1">
                           <p className="font-medium text-gray-900">{exam.subject}</p>
                           <p className="text-sm text-gray-600">
+                            {exam.department && exam.semester ? `${exam.department} • Sem ${exam.semester} • ` : ''}
                             {new Date(exam.date).toLocaleDateString()} • {exam.startTime} - {exam.endTime} • {exam.room}
                           </p>
                         </div>

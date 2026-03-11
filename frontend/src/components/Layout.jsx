@@ -10,11 +10,12 @@ import {
   Calendar, 
   FileText, 
   DollarSign, 
-  Clock, 
-  Bell,
+  Clock,
   ClipboardList,
   BookOpen,
-  LogOut 
+  Bell,
+  LogOut,
+  ShieldCheck
 } from 'lucide-react';
 
 const Layout = ({ children }) => {
@@ -30,11 +31,10 @@ const Layout = ({ children }) => {
 
   const getNavItems = () => {
     const baseItems = [
-      { name: 'Dashboard', href: '/dashboard', icon: Home },
-      { name: 'Notifications', href: '/notifications', icon: Bell }
+      { name: 'Dashboard', href: '/dashboard', icon: Home }
     ];
 
-    if (user?.role === 'admin') {
+    if (user?.role === 'admin' || user?.role === 'management') {
       return [
         ...baseItems,
         { name: 'Students', href: '/students', icon: Users },
@@ -43,7 +43,9 @@ const Layout = ({ children }) => {
         { name: 'Attendance', href: '/attendance', icon: Calendar },
         { name: 'Exam Schedule', href: '/exam-schedule', icon: BookOpen },
         { name: 'Results', href: '/results', icon: FileText },
+        ...(user?.role === 'management' ? [{ name: 'Mail Unblock', href: '/mail-unblock', icon: ShieldCheck }] : []),
         { name: 'Fees', href: '/fees', icon: DollarSign },
+        { name: 'Notifications', href: '/notifications', icon: Bell },
         { name: 'Timetables', href: '/timetables', icon: Clock }
       ];
     }
@@ -56,8 +58,10 @@ const Layout = ({ children }) => {
         { name: 'Attendance', href: '/attendance', icon: Calendar },
         { name: 'Exam Schedule', href: '/exam-schedule', icon: BookOpen },
         { name: 'Results', href: '/results', icon: FileText },
+        { name: 'Mail Unblock', href: '/mail-unblock', icon: ShieldCheck },
         { name: 'Reports', href: '/reports', icon: FileText },
         { name: 'Fees', href: '/fees', icon: DollarSign },
+        { name: 'Notifications', href: '/notifications', icon: Bell },
         { name: 'Timetables', href: '/timetables', icon: Clock }
       ];
     }
@@ -65,12 +69,14 @@ const Layout = ({ children }) => {
     if (user?.role === 'faculty') {
       return [
         ...baseItems,
+        { name: 'Students', href: '/students', icon: Users },
         { name: 'Attendance', href: '/attendance', icon: Calendar },
         { name: 'Exam Schedule', href: '/exam-schedule', icon: BookOpen },
         { name: 'Results', href: '/results', icon: FileText },
         { name: 'Reports', href: '/reports', icon: FileText },
         { name: 'Fees', href: '/fees', icon: DollarSign },
         { name: 'Exams', href: '/exams', icon: FileText },
+        { name: 'Notifications', href: '/notifications', icon: Bell },
         { name: 'Timetables', href: '/timetables', icon: Clock }
       ];
     }
@@ -84,6 +90,7 @@ const Layout = ({ children }) => {
         { name: 'Results', href: '/results', icon: FileText },
         { name: 'Reports', href: '/reports', icon: FileText },
         { name: 'Fees', href: '/fees', icon: DollarSign },
+        { name: 'Notifications', href: '/notifications', icon: Bell },
         { name: 'Timetables', href: '/timetables', icon: Clock }
       ];
     }
@@ -92,6 +99,7 @@ const Layout = ({ children }) => {
       return [
         ...baseItems,
         { name: 'Admissions', href: '/admissions', icon: ClipboardList },
+        { name: 'Notifications', href: '/notifications', icon: Bell },
         { name: 'Exam Schedule', href: '/exam-schedule', icon: BookOpen }
       ];
     }
@@ -99,7 +107,8 @@ const Layout = ({ children }) => {
     if (user?.role === 'accountant') {
       return [
         ...baseItems,
-        { name: 'Fees', href: '/fees', icon: DollarSign }
+        { name: 'Fees', href: '/fees', icon: DollarSign },
+        { name: 'Notifications', href: '/notifications', icon: Bell }
       ];
     }
 

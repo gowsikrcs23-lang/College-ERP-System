@@ -174,7 +174,7 @@ const Admissions = () => {
                 </div>
               )}
               
-              {app.status === 'approved' && user?.role === 'admin' && !app.studentCreated && (
+              {app.status === 'approved' && user?.role === 'management' && !app.studentCreated && (
                 <button
                   onClick={() => {
                     setEditingApp(app);

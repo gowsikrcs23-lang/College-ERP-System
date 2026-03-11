@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Users, GraduationCap, Calendar, FileText, DollarSign, Bell } from 'lucide-react';
+import { Users, GraduationCap, Calendar, FileText, DollarSign, Home, Bell, ChevronRight } from 'lucide-react';
 import { studentsAPI, facultyAPI, notificationsAPI } from '../utils/api';
 import AttendanceStats from '../components/AttendanceStats';
 
@@ -8,11 +9,16 @@ const Dashboard = () => {
   const { user } = useAuth();
   const [stats, setStats] = useState({
     students: 0,
-    faculty: 0,
-    notifications: 0
+    faculty: 0
   });
-  const [notifications, setNotifications] = useState([]);
+  const [latestNotification, setLatestNotification] = useState(null);
+  const [isLatestNotificationSeen, setIsLatestNotificationSeen] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  const getSeenNotificationStorageKey = () => {
+    const identity = user?._id || user?.email || 'anonymous';
+    return `dashboard-seen-notification-${identity}`;
+  };
 
   useEffect(() => {
     fetchDashboardData();
@@ -20,24 +26,36 @@ const Dashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
-      const [notificationsRes] = await Promise.all([
-        notificationsAPI.getAll()
-      ]);
+      const latestNotificationPromise = notificationsAPI.getAll({ limit: 1, skip: 0 });
 
-      if (user?.role === 'admin') {
-        const [studentsRes, facultyRes] = await Promise.all([
+      if (user?.role === 'admin' || user?.role === 'management') {
+        const [studentsRes, facultyRes, latestNotificationRes] = await Promise.all([
           studentsAPI.getAll(),
-          facultyAPI.getAll()
+          facultyAPI.getAll(),
+          latestNotificationPromise
         ]);
         
         setStats({
           students: studentsRes.data.length,
-          faculty: facultyRes.data.length,
-          notifications: notificationsRes.data.length
+          faculty: facultyRes.data.length
         });
+
+        const notifications = latestNotificationRes.data?.notifications || latestNotificationRes.data || [];
+        const newestNotification = notifications[0] || null;
+        setLatestNotification(newestNotification);
+        setIsLatestNotificationSeen(
+          newestNotification ? localStorage.getItem(getSeenNotificationStorageKey()) === newestNotification._id : false
+        );
+        return;
       }
 
-      setNotifications(notificationsRes.data.slice(0, 5));
+      const latestNotificationRes = await latestNotificationPromise;
+      const notifications = latestNotificationRes.data?.notifications || latestNotificationRes.data || [];
+      const newestNotification = notifications[0] || null;
+      setLatestNotification(newestNotification);
+      setIsLatestNotificationSeen(
+        newestNotification ? localStorage.getItem(getSeenNotificationStorageKey()) === newestNotification._id : false
+      );
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -52,21 +70,17 @@ const Dashboard = () => {
   };
 
   const getStatsCards = () => {
-    if (user?.role === 'admin') {
+    if (user?.role === 'admin' || user?.role === 'management') {
       return [
         { name: 'Total Students', value: stats.students, icon: Users, color: 'bg-blue-500' },
-        { name: 'Total Faculty', value: stats.faculty, icon: GraduationCap, color: 'bg-green-500' },
-        { name: 'Notifications', value: stats.notifications, icon: Bell, color: 'bg-yellow-500' }
+        { name: 'Total Faculty', value: stats.faculty, icon: GraduationCap, color: 'bg-green-500' }
       ];
     }
-
-    return [
-      { name: 'Notifications', value: stats.notifications, icon: Bell, color: 'bg-yellow-500' }
-    ];
+    return [];
   };
 
   const getQuickActions = () => {
-    if (user?.role === 'admin') {
+    if (user?.role === 'admin' || user?.role === 'management') {
       return [
         { name: 'Manage Students', href: '/students', icon: Users },
         { name: 'Manage Faculty', href: '/faculty', icon: GraduationCap },
@@ -97,22 +111,32 @@ const Dashboard = () => {
       ];
     }
 
-    return [];
+    if (user?.role === 'hod') {
+      return [
+        { name: 'Manage Students', href: '/students', icon: Users },
+        { name: 'Manage Faculty', href: '/faculty', icon: GraduationCap },
+        { name: 'View Attendance', href: '/attendance', icon: Calendar }
+      ];
+    }
+
+    return [
+      { name: 'Dashboard', href: '/dashboard', icon: Home }
+    ];
   };
 
   const shouldShowAttendanceStats = () => {
-    return user?.role === 'admin' || user?.role === 'faculty';
+    return user?.role === 'admin' || user?.role === 'management' || user?.role === 'faculty';
   };
 
   const getAttendanceStatsProps = () => {
     if (user?.role === 'faculty') {
       return {
         department: user?.profile?.department,
-        semester: null // Faculty can see all semesters in their department
+        semester: null
       };
     }
     return {
-      department: null, // Admin can see all departments
+      department: null,
       semester: null
     };
   };
@@ -134,6 +158,43 @@ const Dashboard = () => {
         <h1 className="text-2xl font-bold text-gray-900">{getWelcomeMessage()}</h1>
         <p className="text-gray-600">Here's what's happening in your college today.</p>
       </div>
+
+      {latestNotification && (
+        <div className="dashboard-alert-card relative overflow-hidden rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 via-orange-50 to-red-50 p-5 shadow-sm">
+          <div className="dashboard-alert-glow"></div>
+          <div className="relative flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div className="min-w-0">
+              <div className="mb-2 flex items-center gap-2">
+                <span className={`${isLatestNotificationSeen ? '' : 'dashboard-alert-icon'} flex h-10 w-10 items-center justify-center rounded-full bg-amber-500 text-white shadow-sm`}>
+                  <Bell className="h-5 w-5" />
+                </span>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">Latest Notification</p>
+                  <p className="text-sm text-amber-900">{latestNotification.type}</p>
+                </div>
+              </div>
+              <h2 className="text-lg font-bold text-gray-900">{latestNotification.title}</h2>
+              <p className="mt-2 max-w-3xl text-sm text-gray-700">{latestNotification.message}</p>
+              <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-gray-600">
+                <span>Created: {new Date(latestNotification.createdAt).toLocaleDateString()}</span>
+                {latestNotification.targetAudience && (
+                  <span className="capitalize">Audience: {latestNotification.targetAudience}</span>
+                )}
+                {latestNotification.department && <span>Department: {latestNotification.department}</span>}
+                {latestNotification.semester && <span>Semester: {latestNotification.semester}</span>}
+              </div>
+            </div>
+
+            <Link
+              to="/notifications"
+              className="inline-flex items-center gap-2 self-start rounded-lg bg-white/90 px-4 py-2 text-sm font-medium text-amber-900 shadow-sm ring-1 ring-amber-200 transition hover:bg-white"
+            >
+              View all
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* Stats Cards */}
       {statsCards.length > 0 && (
@@ -168,7 +229,7 @@ const Dashboard = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
         {/* Quick Actions */}
         <div className="card">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
@@ -186,26 +247,6 @@ const Dashboard = () => {
                 </a>
               );
             })}
-          </div>
-        </div>
-
-        {/* Recent Notifications */}
-        <div className="card">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Notifications</h3>
-          <div className="space-y-3">
-            {notifications.length > 0 ? (
-              notifications.map((notification) => (
-                <div key={notification._id} className="border-l-4 border-primary-500 bg-primary-50 pl-4 pr-3 py-3 rounded-r-lg">
-                  <h4 className="text-sm font-semibold text-gray-900">{notification.title}</h4>
-                  <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
-                  <p className="text-xs text-gray-500 mt-2">
-                    {new Date(notification.createdAt).toLocaleDateString()}
-                  </p>
-                </div>
-              ))
-            ) : (
-              <p className="text-gray-500 text-sm">No notifications available</p>
-            )}
           </div>
         </div>
       </div>

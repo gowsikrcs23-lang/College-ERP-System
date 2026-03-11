@@ -26,14 +26,33 @@ const createFaculty = async (req, res) => {
   try {
     const { email, password, ...facultyData } = req.body;
 
+    // Check if email already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: 'Email already exists. Please use a different email.' });
+    }
+
     const user = await User.create({
       email,
       password,
       role: 'faculty'
     });
 
+    let facultyId = facultyData.facultyId;
+    if (!facultyId) {
+      const lastFaculty = await Faculty.findOne({})
+        .sort({ createdAt: -1, _id: -1 })
+        .select('facultyId');
+      const lastNumber = lastFaculty?.facultyId
+        ? parseInt(String(lastFaculty.facultyId).replace(/\D/g, ''), 10)
+        : 0;
+      const nextNumber = Number.isNaN(lastNumber) ? 1 : lastNumber + 1;
+      facultyId = `FAC${String(nextNumber).padStart(3, '0')}`;
+    }
+
     const faculty = await Faculty.create({
       ...facultyData,
+      facultyId,
       email,
       user: user._id
     });
@@ -46,6 +65,9 @@ const createFaculty = async (req, res) => {
       faculty: await Faculty.findById(faculty._id).populate('user', 'email isActive')
     });
   } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({ message: 'Email already exists. Please use a different email.' });
+    }
     res.status(500).json({ message: error.message });
   }
 };

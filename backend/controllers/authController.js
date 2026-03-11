@@ -65,6 +65,12 @@ const login = async (req, res) => {
     if (!user.isActive) {
       return res.status(401).json({ message: 'Account is deactivated' });
     }
+    
+    if (user.isEmailBlocked) {
+      return res.status(401).json({
+        message: 'This student email is blocked. Please contact management.'
+      });
+    }
 
     // Get profile based on role
     let profile = null;

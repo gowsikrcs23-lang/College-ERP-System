@@ -15,7 +15,7 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['admin', 'faculty', 'student', 'accountant', 'admission', 'hod'],
+    enum: ['admin', 'management', 'faculty', 'student', 'accountant', 'admission', 'hod'],
     required: true
   },
   profile: {
@@ -24,6 +24,45 @@ const userSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  isEmailBlocked: {
+    type: Boolean,
+    default: false
+  },
+  emailBlockCount: {
+    type: Number,
+    default: 0
+  },
+  emailBlockedAt: {
+    type: Date
+  },
+  emailBlockReason: {
+    type: String,
+    trim: true
+  },
+  emailBlockHistory: [{
+    reason: { type: String, required: true, trim: true },
+    blockedAt: { type: Date, default: Date.now },
+    blockedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    facultyApprovedAt: { type: Date },
+    facultyApprovedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    unblockedAt: { type: Date },
+    unblockedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+  }],
+  emailBlockedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  unblockApprovedByFaculty: {
+    type: Boolean,
+    default: false
+  },
+  unblockApprovedAt: {
+    type: Date
+  },
+  unblockApprovedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
   }
 }, {
   timestamps: true

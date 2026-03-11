@@ -6,7 +6,11 @@ const {
   createStudent,
   updateStudent,
   deleteStudent,
-  getStudentsByDepartment
+  getStudentsByDepartment,
+  blockStudentMail,
+  approveStudentMailUnblock,
+  unblockStudentMail,
+  clearStudentMailBlockCount
 } = require('../controllers/studentController');
 const { auth, authorize } = require('../middleware/auth');
 const validate = require('../middleware/validation');
@@ -24,11 +28,15 @@ const studentValidation = [
 ];
 
 // Routes
-router.get('/', auth, authorize('admin', 'faculty', 'accountant', 'hod'), getAllStudents);
-router.get('/department/:department', auth, authorize('admin', 'faculty', 'accountant', 'hod'), getStudentsByDepartment);
+router.get('/', auth, authorize('admin', 'management', 'faculty', 'accountant', 'hod'), getAllStudents);
+router.get('/department/:department', auth, authorize('admin', 'management', 'faculty', 'accountant', 'hod'), getStudentsByDepartment);
 router.get('/:id', auth, getStudentById);
-router.post('/', auth, authorize('admin', 'hod'), studentValidation, validate, createStudent);
-router.put('/:id', auth, authorize('admin', 'hod'), updateStudent);
-router.delete('/:id', auth, authorize('admin', 'hod'), deleteStudent);
+router.post('/', auth, authorize('admin', 'management', 'hod', 'faculty'), studentValidation, validate, createStudent);
+router.put('/:id', auth, authorize('admin', 'management', 'hod', 'faculty'), updateStudent);
+router.put('/:id/block-mail', auth, authorize('management'), blockStudentMail);
+router.put('/:id/approve-unblock', auth, authorize('faculty'), approveStudentMailUnblock);
+router.put('/:id/unblock-mail', auth, authorize('management'), unblockStudentMail);
+router.put('/:id/clear-mail-block-count', auth, authorize('management'), clearStudentMailBlockCount);
+router.delete('/:id', auth, authorize('admin', 'management', 'hod', 'faculty'), deleteStudent);
 
 module.exports = router;

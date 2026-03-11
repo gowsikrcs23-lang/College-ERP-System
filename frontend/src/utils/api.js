@@ -9,7 +9,11 @@ export const studentsAPI = {
   create: (data) => axios.post(`${API_BASE_URL}/students`, data),
   update: (id, data) => axios.put(`${API_BASE_URL}/students/${id}`, data),
   delete: (id) => axios.delete(`${API_BASE_URL}/students/${id}`),
-  getByDepartment: (department) => axios.get(`${API_BASE_URL}/students/department/${department}`)
+  getByDepartment: (department) => axios.get(`${API_BASE_URL}/students/department/${department}`),
+  blockMail: (id, data) => axios.put(`${API_BASE_URL}/students/${id}/block-mail`, data),
+  approveUnblock: (id) => axios.put(`${API_BASE_URL}/students/${id}/approve-unblock`),
+  unblockMail: (id) => axios.put(`${API_BASE_URL}/students/${id}/unblock-mail`),
+  clearMailBlockCount: (id) => axios.put(`${API_BASE_URL}/students/${id}/clear-mail-block-count`)
 };
 
 // Faculty API
@@ -37,7 +41,9 @@ export const examsAPI = {
   getAll: (params) => axios.get(`${API_BASE_URL}/exams`, { params }),
   getById: (id) => axios.get(`${API_BASE_URL}/exams/${id}`),
   addResults: (examId, data) => axios.post(`${API_BASE_URL}/exams/${examId}/results`, data),
-  getStudentResults: (studentId, params) => axios.get(`${API_BASE_URL}/exams/student/${studentId}/results`, { params })
+  getStudentResults: (studentId, params) => axios.get(`${API_BASE_URL}/exams/student/${studentId}/results`, { params }),
+  getResults: (params) => axios.get(`${API_BASE_URL}/results`, { params }),
+  getByStudent: (studentId) => axios.get(`${API_BASE_URL}/results/student/${studentId}`)
 };
 
 // Fees API

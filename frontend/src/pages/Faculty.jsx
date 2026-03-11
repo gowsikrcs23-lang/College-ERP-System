@@ -10,26 +10,23 @@ const Faculty = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingFaculty, setEditingFaculty] = useState(null);
   const [formData, setFormData] = useState({
-    facultyId: '',
     firstName: '',
     lastName: '',
     email: '',
     password: '',
     phone: '',
     dateOfBirth: '',
-    gender: '',
+    department: '',
+    designation: '',
+    qualification: '',
+    joiningDate: '',
+    subjects: [],
     address: {
       street: '',
       city: '',
       state: '',
       zipCode: ''
-    },
-    department: '',
-    designation: '',
-    qualification: '',
-    experience: '',
-    joiningDate: '',
-    subjects: ''
+    }
   });
 
   useEffect(() => {
@@ -57,7 +54,6 @@ const Faculty = () => {
         await facultyAPI.create(formData);
         toast.success('Faculty created successfully');
       }
-      
       fetchFaculty();
       resetForm();
       setShowModal(false);
@@ -67,7 +63,7 @@ const Faculty = () => {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this faculty?')) {
+    if (window.confirm('Are you sure you want to delete this faculty member?')) {
       try {
         await facultyAPI.delete(id);
         toast.success('Faculty deleted successfully');
@@ -80,26 +76,23 @@ const Faculty = () => {
 
   const resetForm = () => {
     setFormData({
-      facultyId: '',
       firstName: '',
       lastName: '',
       email: '',
       password: '',
       phone: '',
       dateOfBirth: '',
-      gender: '',
+      department: '',
+      designation: '',
+      qualification: '',
+      joiningDate: '',
+      subjects: [],
       address: {
         street: '',
         city: '',
         state: '',
         zipCode: ''
-      },
-      department: '',
-      designation: '',
-      qualification: '',
-      experience: '',
-      joiningDate: '',
-      subjects: ''
+      }
     });
     setEditingFaculty(null);
   };
@@ -107,30 +100,32 @@ const Faculty = () => {
   const openEditModal = (facultyMember) => {
     setEditingFaculty(facultyMember);
     setFormData({
-      facultyId: facultyMember.facultyId,
       firstName: facultyMember.firstName,
       lastName: facultyMember.lastName,
       email: facultyMember.email,
       password: '',
       phone: facultyMember.phone,
-      dateOfBirth: facultyMember.dateOfBirth ? new Date(facultyMember.dateOfBirth).toISOString().split('T')[0] : '',
-      gender: facultyMember.gender || '',
-      address: facultyMember.address || { street: '', city: '', state: '', zipCode: '' },
+      dateOfBirth: facultyMember.dateOfBirth?.split('T')[0] || '',
       department: facultyMember.department,
       designation: facultyMember.designation,
-      qualification: facultyMember.qualification,
-      experience: facultyMember.experience,
-      joiningDate: facultyMember.joiningDate ? new Date(facultyMember.joiningDate).toISOString().split('T')[0] : '',
-      subjects: Array.isArray(facultyMember.subjects) ? facultyMember.subjects.join(', ') : ''
+      qualification: facultyMember.qualification || '',
+      joiningDate: facultyMember.joiningDate?.split('T')[0] || '',
+      subjects: facultyMember.subjects || [],
+      address: facultyMember.address || {
+        street: '',
+        city: '',
+        state: '',
+        zipCode: ''
+      }
     });
     setShowModal(true);
   };
 
-  const filteredFaculty = faculty.filter(f =>
-    f.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    f.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    f.facultyId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    f.email.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredFaculty = faculty.filter(facultyMember =>
+    facultyMember.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    facultyMember.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    facultyMember.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    facultyMember.department?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (loading) {
@@ -176,10 +171,10 @@ const Faculty = () => {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Faculty
+                  Name
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  ID
+                  Email
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Department
@@ -188,7 +183,7 @@ const Faculty = () => {
                   Designation
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Contact
+                  Phone
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
@@ -203,11 +198,10 @@ const Faculty = () => {
                       <div className="text-sm font-medium text-gray-900">
                         {facultyMember.firstName} {facultyMember.lastName}
                       </div>
-                      <div className="text-sm text-gray-500">{facultyMember.email}</div>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {facultyMember.facultyId}
+                    {facultyMember.email}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {facultyMember.department}
@@ -242,188 +236,214 @@ const Faculty = () => {
       {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-10 mx-auto p-6 border w-full max-w-3xl shadow-lg rounded-md bg-white my-8">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">
-              {editingFaculty ? 'Edit Faculty' : 'Add New Faculty'}
-            </h3>
-            
-            <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
-              <div>
-                <h4 className="font-semibold text-gray-700 mb-2">Basic Information</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <input
-                    type="text"
-                    placeholder="Faculty ID *"
-                    className="input-field"
-                    value={formData.facultyId}
-                    onChange={(e) => setFormData({...formData, facultyId: e.target.value})}
-                    required
-                  />
-                  <input
-                    type="text"
-                    placeholder="First Name *"
-                    className="input-field"
-                    value={formData.firstName}
-                    onChange={(e) => setFormData({...formData, firstName: e.target.value})}
-                    required
-                  />
-                  <input
-                    type="text"
-                    placeholder="Last Name *"
-                    className="input-field"
-                    value={formData.lastName}
-                    onChange={(e) => setFormData({...formData, lastName: e.target.value})}
-                    required
-                  />
-                  <input
-                    type="email"
-                    placeholder="Email *"
-                    className="input-field"
-                    value={formData.email}
-                    onChange={(e) => setFormData({...formData, email: e.target.value})}
-                    required
-                  />
-                  {!editingFaculty && (
-                    <input
-                      type="password"
-                      placeholder="Password *"
-                      className="input-field"
-                      value={formData.password}
-                      onChange={(e) => setFormData({...formData, password: e.target.value})}
-                      required
-                    />
-                  )}
-                  <input
-                    type="tel"
-                    placeholder="Phone *"
-                    className="input-field"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                    required
-                  />
-                  <input
-                    type="date"
-                    placeholder="Date of Birth"
-                    className="input-field"
-                    value={formData.dateOfBirth}
-                    onChange={(e) => setFormData({...formData, dateOfBirth: e.target.value})}
-                  />
-                  <select
-                    className="input-field"
-                    value={formData.gender}
-                    onChange={(e) => setFormData({...formData, gender: e.target.value})}
-                  >
-                    <option value="">Select Gender</option>
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                    <option value="other">Other</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-semibold text-gray-700 mb-2">Address</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <input
-                    type="text"
-                    placeholder="Street"
-                    className="input-field col-span-2"
-                    value={formData.address.street}
-                    onChange={(e) => setFormData({...formData, address: {...formData.address, street: e.target.value}})}
-                  />
-                  <input
-                    type="text"
-                    placeholder="City"
-                    className="input-field"
-                    value={formData.address.city}
-                    onChange={(e) => setFormData({...formData, address: {...formData.address, city: e.target.value}})}
-                  />
-                  <input
-                    type="text"
-                    placeholder="State"
-                    className="input-field"
-                    value={formData.address.state}
-                    onChange={(e) => setFormData({...formData, address: {...formData.address, state: e.target.value}})}
-                  />
-                  <input
-                    type="text"
-                    placeholder="Zip Code"
-                    className="input-field"
-                    value={formData.address.zipCode}
-                    onChange={(e) => setFormData({...formData, address: {...formData.address, zipCode: e.target.value}})}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-semibold text-gray-700 mb-2">Professional Information</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <select
-                    className="input-field"
-                    value={formData.department}
-                    onChange={(e) => setFormData({...formData, department: e.target.value})}
-                    required
-                  >
-                    <option value="">Select Department *</option>
-                    <option value="Computer Science">Computer Science</option>
-                    <option value="Electronics">Electronics</option>
-                    <option value="Mechanical">Mechanical</option>
-                    <option value="Civil">Civil</option>
-                  </select>
-                  <input
-                    type="text"
-                    placeholder="Designation *"
-                    className="input-field"
-                    value={formData.designation}
-                    onChange={(e) => setFormData({...formData, designation: e.target.value})}
-                    required
-                  />
-                  <input
-                    type="text"
-                    placeholder="Qualification *"
-                    className="input-field"
-                    value={formData.qualification}
-                    onChange={(e) => setFormData({...formData, qualification: e.target.value})}
-                    required
-                  />
-                  <input
-                    type="number"
-                    placeholder="Experience (years) *"
-                    className="input-field"
-                    value={formData.experience}
-                    onChange={(e) => setFormData({...formData, experience: e.target.value})}
-                    required
-                  />
-                  <input
-                    type="date"
-                    placeholder="Joining Date"
-                    className="input-field"
-                    value={formData.joiningDate}
-                    onChange={(e) => setFormData({...formData, joiningDate: e.target.value})}
-                  />
-                  <input
-                    type="text"
-                    placeholder="Subjects (comma separated)"
-                    className="input-field"
-                    value={formData.subjects}
-                    onChange={(e) => setFormData({...formData, subjects: e.target.value})}
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end space-x-3 pt-4 border-t">
+          <div className="relative min-h-screen flex items-center justify-center p-4">
+            <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
+              {/* Header */}
+              <div className="bg-primary-600 px-6 py-4 flex justify-between items-center">
+                <h3 className="text-xl font-bold text-white">
+                  {editingFaculty ? 'Edit Faculty' : 'Add New Faculty'}
+                </h3>
                 <button
-                  type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  className="text-white hover:text-gray-200 text-2xl font-bold"
                 >
-                  Cancel
-                </button>
-                <button type="submit" className="btn-primary">
-                  {editingFaculty ? 'Update Faculty' : 'Create Faculty'}
+                  ×
                 </button>
               </div>
-            </form>
+              
+              {/* Form Content */}
+              <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  {/* Basic Info Row */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">First Name</label>
+                      <input
+                        type="text"
+                        className="input-field text-sm"
+                        value={formData.firstName}
+                        onChange={(e) => setFormData({...formData, firstName: e.target.value})}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Last Name</label>
+                      <input
+                        type="text"
+                        className="input-field text-sm"
+                        value={formData.lastName}
+                        onChange={(e) => setFormData({...formData, lastName: e.target.value})}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Email</label>
+                      <input
+                        type="email"
+                        className="input-field text-sm"
+                        value={formData.email}
+                        onChange={(e) => setFormData({...formData, email: e.target.value})}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Phone</label>
+                      <input
+                        type="tel"
+                        className="input-field text-sm"
+                        value={formData.phone}
+                        onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                        maxLength="10"
+                        pattern="[0-9]{10}"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Password for new faculty */}
+                  {!editingFaculty && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Password</label>
+                        <input
+                          type="password"
+                          className="input-field text-sm"
+                          value={formData.password}
+                          onChange={(e) => setFormData({...formData, password: e.target.value})}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Date of Birth</label>
+                        <input
+                          type="date"
+                          className="input-field text-sm"
+                          value={formData.dateOfBirth}
+                          onChange={(e) => setFormData({...formData, dateOfBirth: e.target.value})}
+                          required
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Department and Designation */}
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Department</label>
+                      <select
+                        className="input-field text-sm"
+                        value={formData.department}
+                        onChange={(e) => setFormData({...formData, department: e.target.value})}
+                        required
+                      >
+                        <option value="">Select</option>
+                        <option value="Computer Science">CS</option>
+                        <option value="Electronics">EE</option>
+                        <option value="Mechanical">ME</option>
+                        <option value="Civil">CE</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Designation</label>
+                      <select
+                        className="input-field text-sm"
+                        value={formData.designation}
+                        onChange={(e) => setFormData({...formData, designation: e.target.value})}
+                        required
+                      >
+                        <option value="">Select</option>
+                        <option value="Professor">Professor</option>
+                        <option value="Associate Professor">Associate Professor</option>
+                        <option value="Assistant Professor">Assistant Professor</option>
+                        <option value="Lecturer">Lecturer</option>
+                        <option value="Guest Lecturer">Guest Lecturer</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Qualification</label>
+                      <input
+                        type="text"
+                        className="input-field text-sm"
+                        value={formData.qualification}
+                        onChange={(e) => setFormData({...formData, qualification: e.target.value})}
+                        placeholder="e.g. M.Tech, PhD"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Joining Date</label>
+                      <input
+                        type="date"
+                        className="input-field text-sm"
+                        value={formData.joiningDate}
+                        onChange={(e) => setFormData({...formData, joiningDate: e.target.value})}
+                        required
+                      />
+                    </div>
+                    {editingFaculty && (
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Date of Birth</label>
+                        <input
+                          type="date"
+                          className="input-field text-sm"
+                          value={formData.dateOfBirth}
+                          onChange={(e) => setFormData({...formData, dateOfBirth: e.target.value})}
+                          required
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Address Row */}
+                  <div className="border-t pt-3">
+                    <h4 className="font-semibold text-gray-700 text-sm mb-2">Address Details</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <div className="col-span-2">
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Street</label>
+                        <input
+                          type="text"
+                          className="input-field text-sm"
+                          value={formData.address.street}
+                          onChange={(e) => setFormData({...formData, address: {...formData.address, street: e.target.value}})}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">City</label>
+                        <input
+                          type="text"
+                          className="input-field text-sm"
+                          value={formData.address.city}
+                          onChange={(e) => setFormData({...formData, address: {...formData.address, city: e.target.value}})}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">State</label>
+                        <input
+                          type="text"
+                          className="input-field text-sm"
+                          value={formData.address.state}
+                          onChange={(e) => setFormData({...formData, address: {...formData.address, state: e.target.value}})}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex justify-end space-x-3 pt-4 border-t">
+                    <button
+                      type="button"
+                      onClick={() => setShowModal(false)}
+                      className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium"
+                    >
+                      Cancel
+                    </button>
+                    <button type="submit" className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm font-medium">
+                      {editingFaculty ? 'Update' : 'Create'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
           </div>
         </div>
       )}

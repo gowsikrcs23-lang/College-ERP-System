@@ -181,7 +181,7 @@ exports.generateReport = async (req, res) => {
 
     const report = await Report.create(reportData);
     const populatedReport = await Report.findById(report._id)
-      .populate('student', 'firstName lastName studentId department')
+      .populate('student', 'firstName lastName studentId department batch email phone dateOfBirth bio')
       .populate('generatedBy', 'email role');
 
     res.status(201).json({
@@ -198,7 +198,7 @@ exports.getStudentReports = async (req, res) => {
     const { studentId } = req.params;
     
     const reports = await Report.find({ student: studentId })
-      .populate('student', 'firstName lastName studentId department')
+      .populate('student', 'firstName lastName studentId department batch email phone dateOfBirth bio')
       .populate('generatedBy', 'email role')
       .sort({ createdAt: -1 });
 
@@ -217,7 +217,7 @@ exports.getAllReports = async (req, res) => {
     if (semester) filter.semester = semester;
 
     const reports = await Report.find(filter)
-      .populate('student', 'firstName lastName studentId department')
+      .populate('student', 'firstName lastName studentId department batch email phone dateOfBirth bio')
       .populate('generatedBy', 'email role')
       .sort({ createdAt: -1 });
 
@@ -247,6 +247,46 @@ exports.deleteReport = async (req, res) => {
   try {
     await Report.findByIdAndDelete(req.params.id);
     res.json({ message: 'Report deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Delete all reports
+exports.deleteAllReports = async (req, res) => {
+  try {
+    const { reportType, semester, academicYear } = req.query;
+    const filter = {};
+    if (reportType) filter.reportType = reportType;
+    if (semester) filter.semester = semester;
+    if (academicYear) filter.academicYear = academicYear;
+    
+    const result = await Report.deleteMany(filter);
+    res.json({ 
+      message: 'Reports deleted successfully', 
+      deletedCount: result.deletedCount 
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Delete reports for a specific student
+exports.deleteStudentReports = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    const { reportType, semester, academicYear } = req.query;
+    
+    const filter = { student: studentId };
+    if (reportType) filter.reportType = reportType;
+    if (semester) filter.semester = semester;
+    if (academicYear) filter.academicYear = academicYear;
+    
+    const result = await Report.deleteMany(filter);
+    res.json({ 
+      message: 'Student reports deleted successfully', 
+      deletedCount: result.deletedCount 
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

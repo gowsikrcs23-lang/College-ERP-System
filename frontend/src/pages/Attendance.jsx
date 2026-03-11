@@ -15,7 +15,7 @@ const Attendance = () => {
     return <FacultyAttendanceView />;
   }
 
-  if (user?.role === 'admin') {
+  if (user?.role === 'admin' || user?.role === 'management') {
     return <AdminAttendanceView />;
   }
 

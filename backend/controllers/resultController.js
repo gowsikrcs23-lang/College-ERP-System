@@ -68,3 +68,43 @@ exports.deleteResult = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// Delete all results
+exports.deleteAllResults = async (req, res) => {
+  try {
+    const { department, semester, batch } = req.query;
+    const filter = {};
+    if (department) filter.department = department;
+    if (semester) filter.semester = semester;
+    if (batch) filter.batch = batch;
+    
+    const result = await Result.deleteMany(filter);
+    res.json({ 
+      message: 'Results deleted successfully', 
+      deletedCount: result.deletedCount 
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Delete results for a specific student
+exports.deleteStudentResults = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    const { department, semester, batch } = req.query;
+    
+    const filter = { student: studentId };
+    if (department) filter.department = department;
+    if (semester) filter.semester = semester;
+    if (batch) filter.batch = batch;
+    
+    const result = await Result.deleteMany(filter);
+    res.json({ 
+      message: 'Student results deleted successfully', 
+      deletedCount: result.deletedCount 
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

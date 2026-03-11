@@ -2,12 +2,12 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { Upload, FileText, Award, Trash2 } from 'lucide-react';
+import { Upload, FileText, Award, Trash2, Users } from 'lucide-react';
 
 const Results = () => {
   const { user } = useAuth();
 
-  if (user?.role === 'admin') {
+  if (user?.role === 'admin' || user?.role === 'management') {
     return <AdminResultsView />;
   }
 
@@ -43,6 +43,36 @@ const AdminResultsView = () => {
       6: ['Machine Learning', 'Information Security', 'Big Data Analytics', 'IoT', 'Blockchain'],
       7: ['Deep Learning', 'Natural Language Processing', 'Cyber Security', 'DevOps', 'Project I'],
       8: ['Advanced AI', 'Quantum Computing', 'Edge Computing', 'Capstone Project', 'Internship']
+    },
+    'Electronics': {
+      1: ['Mathematics I', 'Physics', 'Chemistry', 'Basic Electrical Engineering', 'Engineering Graphics'],
+      2: ['Mathematics II', 'Electronic Devices', 'Digital Circuits', 'Network Theory', 'Circuit Analysis'],
+      3: ['Analog Circuits', 'Signals and Systems', 'Electromagnetic Theory', 'Microprocessors', 'Control Systems'],
+      4: ['Digital Signal Processing', 'Communication Systems', 'VLSI Design', 'Instrumentation', 'Embedded Systems'],
+      5: ['Wireless Communication', 'Microwave Engineering', 'Image Processing', 'FPGA Design', 'Optical Communication'],
+      6: ['Advanced Embedded Systems', 'Digital Image Processing', 'RF Circuit Design', 'Antenna Theory', 'IoT'],
+      7: ['Advanced Communication Systems', 'VLSI Testing', 'Research Project I', 'Elective I', 'Elective II'],
+      8: ['Capstone Project', 'Internship', 'Advanced Topics', 'Seminar', 'Technical Writing']
+    },
+    'Mechanical': {
+      1: ['Mathematics I', 'Physics', 'Chemistry', 'Engineering Mechanics', 'Engineering Graphics'],
+      2: ['Mathematics II', 'Thermodynamics', 'Fluid Mechanics', 'Material Science', 'Machine Drawing'],
+      3: ['Kinematics of Machinery', 'Strength of Materials', 'Manufacturing Processes', 'Thermal Engineering', 'CAD/CAM'],
+      4: ['Dynamics of Machinery', 'Design of Machine Elements', 'Heat Transfer', 'Manufacturing Technology', 'Finite Element Analysis'],
+      5: ['Automobile Engineering', 'Refrigeration and Air Conditioning', 'Machine Design', 'Industrial Engineering', 'Mechatronics'],
+      6: ['Power Plant Engineering', 'Finite Element Methods', 'Robotics', 'Computational Fluid Dynamics', 'Advanced Manufacturing'],
+      7: ['Advanced Thermal Engineering', 'Product Design', 'Research Project I', 'Elective I', 'Elective II'],
+      8: ['Capstone Project', 'Internship', 'Industrial Training', 'Seminar', 'Technical Writing']
+    },
+    'Civil': {
+      1: ['Mathematics I', 'Physics', 'Chemistry', 'Engineering Mechanics', 'Engineering Graphics'],
+      2: ['Mathematics II', 'Surveying', 'Building Materials', 'Strength of Materials', 'Fluid Mechanics'],
+      3: ['Structural Analysis', 'Concrete Technology', 'Geotechnical Engineering', 'Hydraulics', 'Building Construction'],
+      4: ['Steel Structures', 'Foundation Engineering', 'Transportation Engineering', 'Water Supply Engineering', 'Concrete Structures'],
+      5: ['Steel Design', 'Environmental Engineering', 'Highway Engineering', 'Irrigation Engineering', 'Advanced Surveying'],
+      6: ['Bridge Engineering', 'Groundwater Hydrology', 'Urban Planning', 'Earthquake Engineering', 'Construction Management'],
+      7: ['Advanced Structural Design', 'Environmental Impact Assessment', 'Research Project I', 'Elective I', 'Elective II'],
+      8: ['Capstone Project', 'Internship', 'Industrial Training', 'Seminar', 'Technical Writing']
     }
   };
 
@@ -97,21 +127,7 @@ const AdminResultsView = () => {
 
     try {
       setLoading(true);
-      const resultsData = results.map(r => {
-        const totalMarks = r.subjects.reduce((sum, s) => sum + (parseFloat(s.marks) || 0), 0);
-        const maxTotalMarks = r.subjects.reduce((sum, s) => sum + s.maxMarks, 0);
-        const percentage = (totalMarks / maxTotalMarks) * 100;
-        const result = percentage >= 50 ? 'Pass' : 'Fail';
-        
-        return {
-          studentId: r.studentId,
-          subjects: r.subjects,
-          totalMarks,
-          maxTotalMarks,
-          percentage: percentage.toFixed(2),
-          result
-        };
-      });
+      const resultsData = results.map((r) => buildResultPayload(r));
 
       await axios.post('/api/results/upload', {
         ...formData,
@@ -125,6 +141,44 @@ const AdminResultsView = () => {
       setResults([]);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to upload results');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const buildResultPayload = (studentResult) => {
+    const totalMarks = studentResult.subjects.reduce((sum, s) => sum + (parseFloat(s.marks) || 0), 0);
+    const maxTotalMarks = studentResult.subjects.reduce((sum, s) => sum + s.maxMarks, 0);
+    const percentage = maxTotalMarks > 0 ? (totalMarks / maxTotalMarks) * 100 : 0;
+    const result = percentage >= 50 ? 'Pass' : 'Fail';
+
+    return {
+      studentId: studentResult.studentId,
+      subjects: studentResult.subjects,
+      totalMarks,
+      maxTotalMarks,
+      percentage: percentage.toFixed(2),
+      result
+    };
+  };
+
+  const handlePublishSingleStudent = async (studentResult) => {
+    if (!formData.examType) {
+      toast.error('Please select exam type before publishing');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const resultData = buildResultPayload(studentResult);
+      await axios.post('/api/results/upload', {
+        ...formData,
+        semester: parseInt(formData.semester),
+        results: [resultData]
+      });
+      toast.success(`Published result for ${studentResult.studentName}`);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to publish student result');
     } finally {
       setLoading(false);
     }
@@ -189,11 +243,11 @@ const AdminResultsView = () => {
               required
             >
               <option value="">Select Exam Type</option>
-              <option value="Internal 1">Internal 1</option>
-              <option value="Internal 2">Internal 2</option>
-              <option value="Internal 3">Internal 3</option>
+              <option value="Periodical Test 1">Periodical Test 1</option>
+              <option value="Periodical Test 2">Periodical Test 2</option>
+              <option value="Periodical Test 3">Periodical Test 3</option>
               <option value="Mid-Term">Mid-Term</option>
-              <option value="Final Exam">Final Exam</option>
+              <option value="End Semester">End Semester</option>
             </select>
           </div>
 
@@ -201,7 +255,17 @@ const AdminResultsView = () => {
             <div className="mt-6 space-y-4">
               {results.map((result, studentIndex) => (
                 <div key={result.studentId} className="border rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-900 mb-3">{result.studentName}</h3>
+                  <div className="flex items-center justify-between mb-3 gap-3">
+                    <h3 className="font-semibold text-gray-900">{result.studentName}</h3>
+                    <button
+                      type="button"
+                      disabled={loading || !formData.examType}
+                      onClick={() => handlePublishSingleStudent(result)}
+                      className="px-3 py-1.5 rounded-md text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Publish Student Result
+                    </button>
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     {result.subjects.map((subject, subjectIndex) => (
                       <div key={subjectIndex} className="flex items-center space-x-2">
@@ -279,9 +343,41 @@ const ViewResultsSection = ({ showDelete }) => {
     }
   };
 
+  const handleDeleteAll = async () => {
+    if (!window.confirm('Are you sure you want to delete ALL results for this filter? This action cannot be undone!')) return;
+    
+    try {
+      const response = await axios.delete('/api/results/delete/all', { params: filters });
+      toast.success(`Deleted ${response.data.deletedCount} results successfully`);
+      fetchAllResults();
+    } catch (error) {
+      toast.error('Failed to delete results');
+    }
+  };
+
+  const handleDeleteStudentResults = async (studentId) => {
+    if (!window.confirm('Are you sure you want to delete ALL results for this student? This action cannot be undone!')) return;
+    
+    try {
+      const response = await axios.delete(`/api/results/student/${studentId}/delete`, { params: filters });
+      toast.success(`Deleted ${response.data.deletedCount} results for this student`);
+      fetchAllResults();
+    } catch (error) {
+      toast.error('Failed to delete student results');
+    }
+  };
+
   return (
     <div className="card">
-      <h2 className="text-xl font-semibold text-gray-900 mb-4">View Published Results</h2>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-semibold text-gray-900">View Published Results</h2>
+        {showDelete && allResults.length > 0 && (
+          <button onClick={handleDeleteAll} className="btn-danger flex items-center gap-2">
+            <Trash2 className="h-4 w-4" />
+            Delete All Results
+          </button>
+        )}
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
         <select className="input-field" value={filters.department} onChange={(e) => setFilters({...filters, department: e.target.value})}>
           <option value="">Select Department</option>
@@ -324,9 +420,14 @@ const ViewResultsSection = ({ showDelete }) => {
                     {expandedResult === result._id ? 'Hide Details' : 'View Details'}
                   </button>
                   {showDelete && (
-                    <button onClick={() => handleDelete(result._id)} className="text-red-600 hover:text-red-800">
-                      <Trash2 className="h-5 w-5" />
-                    </button>
+                    <>
+                      <button onClick={() => handleDeleteStudentResults(result.student._id)} className="text-orange-600 hover:text-orange-800" title="Delete all results for this student">
+                        <Users className="h-5 w-5" />
+                      </button>
+                      <button onClick={() => handleDelete(result._id)} className="text-red-600 hover:text-red-800">
+                        <Trash2 className="h-5 w-5" />
+                      </button>
+                    </>
                   )}
                 </div>
               </div>

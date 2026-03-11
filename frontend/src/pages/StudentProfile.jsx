@@ -103,7 +103,7 @@ const StudentProfile = () => {
             <h1 className="text-3xl font-bold mb-2">My Profile</h1>
             <p className="text-blue-100">View your personal information</p>
           </div>
-          {user?.role === 'admin' && (
+          {user?.role === 'management' && (
             <button
               onClick={() => setShowEditModal(true)}
               className="bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors flex items-center gap-2 shadow-md"
@@ -148,6 +148,12 @@ const StudentProfile = () => {
                 <div>
                   <p className="text-sm text-gray-600">Email</p>
                   <p className="font-medium text-gray-900">{student.email}</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Mail Block Count: {student.user?.emailBlockCount || 0}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Mail Status: {student.user?.isEmailBlocked ? 'Blocked' : 'Active'}
+                  </p>
                 </div>
               </div>
 
@@ -272,7 +278,7 @@ const StudentProfile = () => {
       </div>
 
       {/* Edit Modal - Admin Only */}
-      {showEditModal && user?.role === 'admin' && (
+      {showEditModal && user?.role === 'management' && (
         <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
           <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
             <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-4 text-white">

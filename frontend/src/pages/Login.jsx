@@ -74,7 +74,7 @@ const Login = () => {
           </div>
         </div>
         
-        <div className="bg-white rounded-xl shadow-xl p-4 border border-gray-100">
+        <div className="card-main p-4">
           <form className="space-y-3" onSubmit={handleSubmit}>
             <div className="space-y-3">
               <div className="relative">
@@ -160,3 +160,4 @@ const Login = () => {
 };
 
 export default Login;
+

@@ -11,7 +11,7 @@ const Fees = () => {
     return <AccountantFeesView />;
   }
 
-  if (user?.role === 'admin' || user?.role === 'faculty') {
+  if (user?.role === 'management' || user?.role === 'faculty') {
     return <ViewOnlyFeesView />;
   }
 
