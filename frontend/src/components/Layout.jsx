@@ -85,6 +85,7 @@ const Layout = ({ children }) => {
       return [
         ...baseItems,
         { name: 'My Profile', href: '/profile', icon: Users },
+        { name: 'Mail Block', href: '/student-mail-block', icon: ShieldCheck },
         { name: 'Attendance', href: '/attendance', icon: Calendar },
         { name: 'Exam Schedule', href: '/exam-schedule', icon: BookOpen },
         { name: 'Results', href: '/results', icon: FileText },
@@ -118,32 +119,33 @@ const Layout = ({ children }) => {
   const navItems = getNavItems();
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-transparent">
       {/* Mobile sidebar */}
       <div className={`fixed inset-0 z-50 lg:hidden ${sidebarOpen ? 'block' : 'hidden'}`}>
         <div className="fixed inset-0 bg-gray-900 bg-opacity-50" onClick={() => setSidebarOpen(false)}></div>
-        <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-white shadow-xl">
-          <div className="flex h-16 items-center justify-between px-6 bg-gradient-to-r from-primary-600 to-primary-700">
+        <div className="shell-sidebar fixed inset-y-0 left-0 flex w-64 flex-col shadow-xl">
+          <div className="shell-sidebar__brand flex h-16 items-center justify-between px-6">
             <h1 className="text-xl font-bold text-white">College ERP</h1>
             <button onClick={() => setSidebarOpen(false)} className="text-white hover:text-gray-200">
               <X className="h-6 w-6" />
             </button>
           </div>
           <nav className="flex-1 space-y-1 px-3 py-4">
-            {navItems.map((item) => {
+            {navItems.map((item, index) => {
               const Icon = item.icon;
               return (
                 <Link
                   key={item.name}
                   to={item.href}
-                  className={`group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
+                  style={{ animationDelay: `${index * 70}ms` }}
+                  className={`shell-nav-link nav-item-animate group flex items-center px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
                     location.pathname === item.href
-                      ? 'bg-primary-50 text-primary-700 shadow-sm'
-                      : 'text-gray-700 hover:bg-gray-50 hover:text-primary-600'
+                      ? 'shell-nav-link--active'
+                      : 'text-gray-700 hover:text-primary-600'
                   }`}
                   onClick={() => setSidebarOpen(false)}
                 >
-                  <Icon className="mr-3 h-5 w-5" />
+                  <Icon className="nav-item-animate__icon mr-3 h-5 w-5" />
                   {item.name}
                 </Link>
               );
@@ -154,24 +156,25 @@ const Layout = ({ children }) => {
 
       {/* Desktop sidebar */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
-        <div className="flex flex-col flex-grow bg-white border-r border-gray-200 shadow-sm">
-          <div className="flex h-16 items-center px-6 bg-gradient-to-r from-primary-600 to-primary-700">
+        <div className="shell-sidebar flex flex-col flex-grow shadow-sm">
+          <div className="shell-sidebar__brand flex h-16 items-center px-6">
             <h1 className="text-xl font-bold text-white">College ERP</h1>
           </div>
           <nav className="flex-1 space-y-1 px-3 py-4">
-            {navItems.map((item) => {
+            {navItems.map((item, index) => {
               const Icon = item.icon;
               return (
                 <Link
                   key={item.name}
                   to={item.href}
-                  className={`group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
+                  style={{ animationDelay: `${index * 70}ms` }}
+                  className={`shell-nav-link nav-item-animate group flex items-center px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
                     location.pathname === item.href
-                      ? 'bg-primary-50 text-primary-700 shadow-sm'
-                      : 'text-gray-700 hover:bg-gray-50 hover:text-primary-600'
+                      ? 'shell-nav-link--active'
+                      : 'text-gray-700 hover:text-primary-600'
                   }`}
                 >
-                  <Icon className="mr-3 h-5 w-5" />
+                  <Icon className="nav-item-animate__icon mr-3 h-5 w-5" />
                   {item.name}
                 </Link>
               );
@@ -183,7 +186,7 @@ const Layout = ({ children }) => {
       {/* Main content */}
       <div className="lg:pl-64">
         {/* Top bar */}
-        <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
+        <div className="shell-topbar topbar-animate sticky top-0 z-40 flex min-h-16 shrink-0 items-center gap-x-4 px-4 py-2 sm:gap-x-6 sm:px-6 lg:px-8">
           <button
             type="button"
             className="-m-2.5 p-2.5 text-gray-700 lg:hidden hover:text-primary-600 transition-colors"
@@ -195,19 +198,19 @@ const Layout = ({ children }) => {
           <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
             <div className="flex flex-1"></div>
             <div className="flex items-center gap-x-4 lg:gap-x-6">
-              <div className="flex items-center gap-x-3">
-                <span className="text-sm font-medium text-gray-700">
+              <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-x-3">
+                <span className="hidden text-sm font-medium text-gray-700 sm:inline">
                   {user?.profile?.firstName} {user?.profile?.lastName}
                 </span>
-                <span className="px-2.5 py-1 text-xs font-medium text-primary-700 bg-primary-50 rounded-full">
+                <span className="shell-role-chip px-2.5 py-1 text-xs font-medium">
                   {user?.role}
                 </span>
                 <button
                   onClick={handleLogout}
-                  className="flex items-center gap-x-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-lg transition-all duration-200"
+                  className="flex items-center gap-x-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-700 transition-all duration-200 hover:bg-gray-50 hover:text-primary-600"
                 >
                   <LogOut className="h-4 w-4" />
-                  Logout
+                  <span className="hidden sm:inline">Logout</span>
                 </button>
               </div>
             </div>
@@ -216,7 +219,7 @@ const Layout = ({ children }) => {
 
         {/* Page content */}
         <main className="py-8">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div key={location.pathname} className="shell-page page-animate mx-auto max-w-7xl px-4 pt-5 sm:px-6 lg:px-8">
             {children}
           </div>
         </main>

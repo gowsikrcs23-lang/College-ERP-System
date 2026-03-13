@@ -199,10 +199,14 @@ const Dashboard = () => {
       {/* Stats Cards */}
       {statsCards.length > 0 && (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {statsCards.map((stat) => {
+          {statsCards.map((stat, index) => {
             const Icon = stat.icon;
             return (
-              <div key={stat.name} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow duration-200">
+              <div
+                key={stat.name}
+                style={{ animationDelay: `${index * 100}ms` }}
+                className="surface-animate bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow duration-200"
+              >
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
                     <div className={`p-3 rounded-xl ${stat.color} shadow-sm`}>
@@ -234,13 +238,14 @@ const Dashboard = () => {
         <div className="card">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
           <div className="grid grid-cols-1 gap-2">
-            {quickActions.map((action) => {
+            {quickActions.map((action, index) => {
               const Icon = action.icon;
               return (
                 <a
                   key={action.name}
                   href={action.href}
-                  className="flex items-center p-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-all duration-200 border border-transparent hover:border-primary-200"
+                  style={{ animationDelay: `${index * 80}ms` }}
+                  className="list-item-animate flex items-center p-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-all duration-200 border border-transparent hover:border-primary-200"
                 >
                   <Icon className="h-5 w-5 mr-3" />
                   {action.name}

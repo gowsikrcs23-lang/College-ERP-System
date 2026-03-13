@@ -29,7 +29,8 @@ const StudentProfile = () => {
       fatherName: '',
       motherName: '',
       guardianContact: '',
-      emergencyContact: ''
+      emergencyContact: '',
+      mailBlockReason: ''
     }
   });
 
@@ -56,7 +57,8 @@ const StudentProfile = () => {
           fatherName: '',
           motherName: '',
           guardianContact: '',
-          emergencyContact: ''
+          emergencyContact: '',
+          mailBlockReason: ''
         }
       });
     } catch (error) {
@@ -97,8 +99,8 @@ const StudentProfile = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl shadow-lg p-6 text-white">
-        <div className="flex justify-between items-center">
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl shadow-lg p-5 sm:p-6 text-white">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-3xl font-bold mb-2">My Profile</h1>
             <p className="text-blue-100">View your personal information</p>
@@ -115,12 +117,11 @@ const StudentProfile = () => {
         </div>
       </div>
 
-      {/* Profile Card */}
       <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
         {/* Profile Header */}
-        <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-8 border-b border-gray-200">
-          <div className="flex items-center gap-6">
-            <div className="w-24 h-24 bg-blue-500 rounded-full flex items-center justify-center text-white text-3xl font-bold">
+        <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-4 py-6 sm:px-6 sm:py-8 border-b border-gray-200">
+          <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:gap-6">
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-blue-500 text-2xl font-bold text-white sm:h-24 sm:w-24 sm:text-3xl">
               {student.firstName.charAt(0)}{student.lastName.charAt(0)}
             </div>
             <div>
@@ -134,7 +135,7 @@ const StudentProfile = () => {
         </div>
 
         {/* Profile Details */}
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Personal Information */}
             <div className="space-y-4">
@@ -148,12 +149,6 @@ const StudentProfile = () => {
                 <div>
                   <p className="text-sm text-gray-600">Email</p>
                   <p className="font-medium text-gray-900">{student.email}</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Mail Block Count: {student.user?.emailBlockCount || 0}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    Mail Status: {student.user?.isEmailBlocked ? 'Blocked' : 'Active'}
-                  </p>
                 </div>
               </div>
 
@@ -233,7 +228,7 @@ const StudentProfile = () => {
         
         {/* Bio Section */}
         {student.bio && Object.values(student.bio).some(val => val) && (
-          <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
+          <div className="bg-gray-50 px-4 py-4 sm:px-6 border-t border-gray-200">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Bio Details</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {student.bio.fullName && (
@@ -280,13 +275,13 @@ const StudentProfile = () => {
       {/* Edit Modal - Admin Only */}
       {showEditModal && user?.role === 'management' && (
         <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
-          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
+          <div className="relative w-full max-w-2xl overflow-hidden rounded-xl bg-white shadow-2xl max-h-[90vh]">
             <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-4 text-white">
               <h3 className="text-xl font-bold">Edit Student Profile</h3>
             </div>
 
             <form onSubmit={handleUpdate} className="p-6 space-y-4 overflow-y-auto max-h-[calc(90vh-120px)]">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
                   <input
@@ -371,7 +366,7 @@ const StudentProfile = () => {
 
               <div>
                 <h4 className="font-semibold text-gray-700 mb-2">Address</h4>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <input
                     type="text"
                     placeholder="Street"
@@ -405,13 +400,14 @@ const StudentProfile = () => {
 
               <div>
                 <h4 className="font-semibold text-gray-700 mb-2">Bio Details</h4>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <input type="text" placeholder="Full Name" className="input-field" value={formData.bio.fullName} onChange={(e) => setFormData({...formData, bio: {...formData.bio, fullName: e.target.value}})} />
                   <input type="text" placeholder="Registration Number" className="input-field" value={formData.bio.registrationNumber} onChange={(e) => setFormData({...formData, bio: {...formData.bio, registrationNumber: e.target.value}})} />
                   <input type="text" placeholder="Father's Name" className="input-field" value={formData.bio.fatherName} onChange={(e) => setFormData({...formData, bio: {...formData.bio, fatherName: e.target.value}})} />
                   <input type="text" placeholder="Mother's Name" className="input-field" value={formData.bio.motherName} onChange={(e) => setFormData({...formData, bio: {...formData.bio, motherName: e.target.value}})} />
                   <input type="text" placeholder="Guardian Contact" className="input-field" maxLength="10" pattern="[0-9]{10}" value={formData.bio.guardianContact} onChange={(e) => setFormData({...formData, bio: {...formData.bio, guardianContact: e.target.value}})} />
                   <input type="text" placeholder="Emergency Contact" className="input-field" maxLength="10" pattern="[0-9]{10}" value={formData.bio.emergencyContact} onChange={(e) => setFormData({...formData, bio: {...formData.bio, emergencyContact: e.target.value}})} />
+                  <input type="text" placeholder="Mail Block Reason" className="input-field col-span-2" value={formData.bio.mailBlockReason || ''} onChange={(e) => setFormData({...formData, bio: {...formData.bio, mailBlockReason: e.target.value}})} />
                 </div>
               </div>
 

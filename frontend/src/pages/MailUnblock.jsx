@@ -117,7 +117,9 @@ const MailUnblock = () => {
       .map((entry, idx) => ({
         id: `${entry.blockedAt || idx}-${idx}`,
         text: entry.reason,
-        date: entry.blockedAt ? new Date(entry.blockedAt).toLocaleDateString() : ''
+        date: entry.blockedAt ? new Date(entry.blockedAt).toLocaleDateString() : '',
+        facultyApprovedByName: entry.facultyApprovedByName || '',
+        facultyApprovedByFacultyId: entry.facultyApprovedByFacultyId || ''
       }));
   };
 
@@ -202,6 +204,12 @@ const MailUnblock = () => {
                 <p className="text-xs text-gray-500 mt-1">
                   Block Count: {student.user?.emailBlockCount || 0} | Faculty Approval: {student.user?.unblockApprovedByFaculty ? 'Approved' : 'Pending'}
                 </p>
+                <p className="text-xs text-red-600 mt-1">
+                  Current Reason: {student.bio?.mailBlockReason || student.user?.emailBlockReason || 'N/A'}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Faculty Approval By: {getAllBlockReasons(student)[0]?.facultyApprovedByName ? `${getAllBlockReasons(student)[0].facultyApprovedByName} (${getAllBlockReasons(student)[0].facultyApprovedByFacultyId || 'ID N/A'})` : 'Pending / N/A'}
+                </p>
                 <p className="text-xs text-gray-500 mt-1">
                   Attendance: {studentMetrics[student._id]?.attendancePercentage ?? 0}% | Avg Marks: {studentMetrics[student._id]?.averageMarks ?? '0.0'}%
                 </p>
@@ -211,7 +219,7 @@ const MailUnblock = () => {
                     <div className="mt-1 space-y-1">
                       {getAllBlockReasons(student).map((item, idx) => (
                         <p key={item.id} className="text-xs text-gray-500">
-                          {idx + 1}. {item.text}{item.date ? ` (${item.date})` : ''}
+                          {idx + 1}. {item.text}{item.date ? ` (${item.date})` : ''}{item.facultyApprovedByName ? ` | Approved by ${item.facultyApprovedByName} (${item.facultyApprovedByFacultyId || 'ID N/A'})` : ''}
                         </p>
                       ))}
                     </div>

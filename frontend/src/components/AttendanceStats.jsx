@@ -39,6 +39,28 @@ const AttendanceStats = ({ department, semester }) => {
     return <TrendingDown className="w-5 h-5" />;
   };
 
+  const groupedStats = stats.reduce((groups, student) => {
+    const departmentName = student.department || 'Unassigned Department';
+
+    if (!groups[departmentName]) {
+      groups[departmentName] = [];
+    }
+
+    groups[departmentName].push(student);
+    return groups;
+  }, {});
+
+  const departmentSections = Object.entries(groupedStats)
+    .sort(([departmentA], [departmentB]) => departmentA.localeCompare(departmentB))
+    .map(([departmentName, students]) => ({
+      departmentName,
+      students: [...students].sort((studentA, studentB) => {
+        const nameComparison = (studentA.name || '').localeCompare(studentB.name || '');
+        if (nameComparison !== 0) return nameComparison;
+        return (studentA.fn || '').localeCompare(studentB.fn || '');
+      })
+    }));
+
   if (loading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -80,57 +102,68 @@ const AttendanceStats = ({ department, semester }) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {stats.map((student) => (
-          <div key={student.studentId} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <h4 className="font-semibold text-gray-900">{student.name}</h4>
-                <p className="text-sm text-gray-600">FN: {student.fn}</p>
-              </div>
-              <div className={`p-2 rounded-full ${getAttendanceColor(student.attendancePercentage)}`}>
-                {getAttendanceIcon(student.attendancePercentage)}
-              </div>
+      <div className="space-y-6">
+        {departmentSections.map(({ departmentName, students }) => (
+          <div key={departmentName} className="space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-200 pb-2">
+              <h4 className="text-base font-semibold text-gray-900">{departmentName}</h4>
+              <span className="text-sm text-gray-500">{students.length} Students</span>
             </div>
 
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Attendance</span>
-                <span className={`text-lg font-bold ${getAttendanceColor(student.attendancePercentage).split(' ')[0]}`}>
-                  {student.attendancePercentage}%
-                </span>
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {students.map((student) => (
+                <div key={student.studentId} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h4 className="font-semibold text-gray-900">{student.name}</h4>
+                      <p className="text-sm text-gray-600">FN: {student.fn}</p>
+                    </div>
+                    <div className={`p-2 rounded-full ${getAttendanceColor(student.attendancePercentage)}`}>
+                      {getAttendanceIcon(student.attendancePercentage)}
+                    </div>
+                  </div>
 
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div
-                  className={`h-2 rounded-full transition-all duration-300 ${
-                    student.attendancePercentage >= 75 
-                      ? 'bg-green-500' 
-                      : student.attendancePercentage >= 60 
-                      ? 'bg-yellow-500' 
-                      : 'bg-red-500'
-                  }`}
-                  style={{ width: `${student.attendancePercentage}%` }}
-                ></div>
-              </div>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">Attendance</span>
+                      <span className={`text-lg font-bold ${getAttendanceColor(student.attendancePercentage).split(' ')[0]}`}>
+                        {student.attendancePercentage}%
+                      </span>
+                    </div>
 
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-gray-600">Present</p>
-                  <p className="font-semibold text-green-600">{student.presentClasses}</p>
-                </div>
-                <div>
-                  <p className="text-gray-600">Absent</p>
-                  <p className="font-semibold text-red-600">{student.absentClasses}</p>
-                </div>
-              </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full transition-all duration-300 ${
+                          student.attendancePercentage >= 75
+                            ? 'bg-green-500'
+                            : student.attendancePercentage >= 60
+                            ? 'bg-yellow-500'
+                            : 'bg-red-500'
+                        }`}
+                        style={{ width: `${student.attendancePercentage}%` }}
+                      ></div>
+                    </div>
 
-              <div className="pt-2 border-t border-gray-100">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Total Classes</span>
-                  <span className="font-semibold">{student.totalClasses}</span>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-gray-600">Present</p>
+                        <p className="font-semibold text-green-600">{student.presentClasses}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600">Absent</p>
+                        <p className="font-semibold text-red-600">{student.absentClasses}</p>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-gray-100">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Total Classes</span>
+                        <span className="font-semibold">{student.totalClasses}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ))}
             </div>
           </div>
         ))}

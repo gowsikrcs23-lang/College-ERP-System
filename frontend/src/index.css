@@ -3,38 +3,93 @@
 @tailwind utilities;
 
 @layer base {
-  html,
-  body {
-    @apply bg-gray-50;
+  :root {
+    --app-ink: #102033;
+    --app-muted: #5d7288;
+    --app-line: rgba(148, 163, 184, 0.24);
+    --app-panel: rgba(255, 255, 255, 0.82);
+    --app-panel-strong: rgba(255, 255, 255, 0.92);
+    --app-shadow: 0 24px 60px rgba(15, 23, 42, 0.09);
+    --app-brand-a: #0f766e;
+    --app-brand-b: #0f52ba;
+    --app-warm: #f97316;
   }
 
-  #root {
+  html,
+  body {
+    min-height: 100%;
+    background:
+      radial-gradient(circle at top left, rgba(45, 212, 191, 0.18), transparent 24%),
+      radial-gradient(circle at 85% 10%, rgba(59, 130, 246, 0.14), transparent 22%),
+      linear-gradient(180deg, #f8fbfc 0%, #f3f7fb 48%, #edf4f8 100%);
+    font-family: "Segoe UI Variable", "Trebuchet MS", "Gill Sans", sans-serif;
+  }
+
+  body {
+    color: var(--app-ink);
+  }
+
+  #root { 
     min-height: 100vh;
   }
 }
 
 @layer components {
   .btn-primary {
-    @apply bg-primary-600 hover:bg-primary-700 text-white font-medium py-2.5 px-5 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md;
+    @apply text-white font-medium py-2.5 px-5 rounded-xl transition-all duration-200;
+    background: linear-gradient(135deg, var(--app-brand-a) 0%, var(--app-brand-b) 100%);
+    box-shadow: 0 14px 28px rgba(15, 82, 186, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.24);
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 18px 36px rgba(15, 82, 186, 0.24);
   }
   
   .btn-secondary {
-    @apply bg-white hover:bg-gray-50 text-gray-700 font-medium py-2.5 px-5 rounded-lg transition-all duration-200 border border-gray-300 shadow-sm;
+    @apply font-medium py-2.5 px-5 rounded-xl transition-all duration-200;
+    color: var(--app-ink);
+    background: rgba(255, 255, 255, 0.88);
+    border: 1px solid var(--app-line);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
   }
   
   .btn-danger {
-    @apply bg-red-600 hover:bg-red-700 text-white font-medium py-2.5 px-5 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md;
+    @apply text-white font-medium py-2.5 px-5 rounded-xl transition-all duration-200;
+    background: linear-gradient(135deg, #dc2626 0%, #ea580c 100%);
+    box-shadow: 0 14px 28px rgba(220, 38, 38, 0.18);
   }
   
   .input-field {
-    @apply w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200;
+    @apply w-full px-4 py-2.5 rounded-xl focus:outline-none transition-all duration-200;
+    border: 1px solid rgba(148, 163, 184, 0.32);
+    background: rgba(255, 255, 255, 0.82);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
   }
+
+  .input-field:focus {
+    border-color: rgba(15, 118, 110, 0.45);
+    box-shadow:
+      0 0 0 4px rgba(45, 212, 191, 0.14),
+      inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  }
+
   .card {
-    @apply bg-white rounded-xl shadow-sm border border-gray-100 p-6 transition-all duration-200;
+    @apply rounded-[1.4rem] p-6 transition-all duration-200;
+    background: var(--app-panel);
+    border: 1px solid var(--app-line);
+    box-shadow: var(--app-shadow);
+    backdrop-filter: blur(18px);
   }
 
   .card-main {
-    @apply bg-white rounded-xl shadow-lg border border-gray-100 p-6 transition-all duration-300 ease-out hover:shadow-2xl hover:-translate-y-1;
+    @apply rounded-[1.6rem] p-6 transition-all duration-300 ease-out hover:-translate-y-1;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(248, 250, 252, 0.9) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 28px 70px rgba(15, 23, 42, 0.12);
+    backdrop-filter: blur(20px);
   }
 
   .card-main:active {
@@ -48,54 +103,234 @@
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at top left, rgba(125, 211, 252, 0.26), transparent 30%),
+      radial-gradient(circle at 85% 18%, rgba(96, 165, 250, 0.16), transparent 26%),
+      linear-gradient(180deg, #f8fbfc 0%, #f2f7fb 46%, #edf3f7 100%);
+  }
+
+  .app-shell::before,
+  .app-shell::after {
+    content: "";
+    position: fixed;
+    inset: auto;
+    pointer-events: none;
+    z-index: -2;
+    filter: blur(18px);
+    opacity: 0.8;
+  }
+
+  .app-shell::before {
+    top: -8rem;
+    left: -6rem;
+    width: 24rem;
+    height: 24rem;
+    border-radius: 9999px;
+    background: radial-gradient(circle, rgba(56, 189, 248, 0.22) 0%, rgba(56, 189, 248, 0) 68%);
+    animation: app-background-drift-one 20s ease-in-out infinite alternate;
+  }
+
+  .app-shell::after {
+    right: -8rem;
+    bottom: -10rem;
+    width: 28rem;
+    height: 28rem;
+    border-radius: 9999px;
+    background: radial-gradient(circle, rgba(59, 130, 246, 0.18) 0%, rgba(59, 130, 246, 0) 70%);
+    animation: app-background-drift-two 24s ease-in-out infinite alternate;
   }
 
   .app-shell__content {
     flex: 1 0 auto;
+    position: relative;
+    z-index: 1;
+  }
+
+  .app-shell__content::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0.5;
+    background-image:
+      linear-gradient(rgba(148, 163, 184, 0.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
+    background-size: 72px 72px;
+    mask-image: radial-gradient(circle at center, rgba(255, 255, 255, 0.95), transparent 88%);
+    animation: app-grid-float 22s linear infinite;
   }
 
   .global-credit-bar {
+    position: relative;
+    z-index: 1;
     margin-top: auto;
-    padding: 1rem 1.25rem 1.4rem;
+    width: 100%;
+    padding: 0.45rem 1.5rem;
     display: flex;
     justify-content: flex-end;
+    border-top: 1px solid rgba(226, 232, 240, 0.9);
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(12px);
   }
 
-  .global-credit-bar__text {
-    margin: 0;
-    max-width: min(56rem, 100%);
-    padding: 0.55rem 0.9rem;
-    border: 1px solid rgba(191, 219, 254, 0.9);
-    border-radius: 9999px;
-    background: rgba(15, 23, 42, 0.92);
-    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
-    color: #dbeafe;
-    font-size: 0.76rem;
-    font-weight: 500;
-    line-height: 1.4;
-    text-align: right;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.65rem;
-    white-space: nowrap;
+  .shell-sidebar {
+    position: relative;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.94) 0%, rgba(245, 249, 252, 0.92) 100%);
+    border-right: 1px solid var(--app-line);
+    box-shadow: 16px 0 40px rgba(15, 23, 42, 0.04);
+    backdrop-filter: blur(16px);
   }
 
-  .global-credit-bar__icon {
-    width: 1.8rem;
-    height: 1.8rem;
+  .shell-sidebar__brand {
+    position: relative;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at top right, rgba(255, 255, 255, 0.18), transparent 30%),
+      linear-gradient(135deg, var(--app-brand-a) 0%, var(--app-brand-b) 100%);
+  }
+
+  .shell-sidebar__brand::after {
+    content: "";
+    position: absolute;
+    inset: auto -2rem -2.75rem auto;
+    width: 7rem;
+    height: 7rem;
     border-radius: 9999px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    color: #f8fafc;
-    background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
-    box-shadow: 0 8px 16px rgba(37, 99, 235, 0.24);
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  .shell-topbar {
+    background: rgba(255, 255, 255, 0.76);
+    border-bottom: 1px solid rgba(226, 232, 240, 0.92);
+    box-shadow: 0 14px 34px rgba(15, 23, 42, 0.06);
+    backdrop-filter: blur(18px);
+  }
+
+  .shell-role-chip {
+    background: linear-gradient(135deg, rgba(15, 118, 110, 0.12) 0%, rgba(14, 165, 233, 0.14) 100%);
+    color: #0f4f61;
+    border: 1px solid rgba(45, 212, 191, 0.2);
+    border-radius: 9999px;
+  }
+
+  .shell-nav-link {
+    position: relative;
+    border: 1px solid transparent;
+    border-radius: 1rem;
+  }
+
+  .shell-nav-link:hover {
+    background: rgba(255, 255, 255, 0.78);
+    border-color: rgba(226, 232, 240, 0.84);
+    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.04);
+  }
+
+  .shell-nav-link--active {
+    background:
+      linear-gradient(135deg, rgba(15, 118, 110, 0.1) 0%, rgba(14, 165, 233, 0.12) 100%);
+    border-color: rgba(45, 212, 191, 0.18);
+    color: #0f4f61;
+    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.06);
+  }
+
+  .shell-page {
+    position: relative;
+  }
+
+  .shell-page::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: min(14rem, 38vw);
+    height: 0.35rem;
+    border-radius: 9999px;
+    background: linear-gradient(90deg, var(--app-brand-a) 0%, #38bdf8 55%, transparent 100%);
+    opacity: 0.7;
   }
 
   .global-credit-bar__copy {
     margin: 0;
-    white-space: nowrap;
+    color: #64748b;
+    font-size: 0.76rem;
+    font-weight: 400;
+    line-height: 1.6;
+    letter-spacing: 0.02em;
+    text-align: right;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  }
+
+  .global-credit-bar__separator {
+    display: inline-block;
+    margin: 0 0.65rem;
+    color: #cbd5e1;
+  }
+
+  @media (max-width: 640px) {
+    .global-credit-bar {
+      padding: 0.4rem 1rem;
+    }
+
+    .global-credit-bar__copy {
+      font-size: 0.72rem;
+      line-height: 1.7;
+    }
+
+    .global-credit-bar__separator {
+      margin: 0 0.4rem;
+    }
+  }
+
+  .page-animate {
+    animation: page-enter 520ms ease-out both;
+  }
+
+  .topbar-animate {
+    animation: topbar-slide 420ms ease-out both;
+  }
+
+  .nav-item-animate {
+    animation: nav-item-enter 420ms ease-out both;
+  }
+
+  .nav-item-animate__icon {
+    transition: transform 220ms ease, color 220ms ease;
+  }
+
+  .nav-item-animate:hover .nav-item-animate__icon {
+    transform: translateX(2px) scale(1.06);
+  }
+
+  .surface-animate {
+    animation: surface-rise 520ms ease-out both;
+    transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease;
+  }
+
+  .surface-animate:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 18px 36px rgba(15, 23, 42, 0.08);
+  }
+
+  .list-item-animate {
+    animation: list-item-enter 480ms ease-out both;
+    transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease;
+  }
+
+  .list-item-animate:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.07);
+  }
+
+  .modal-backdrop-animate {
+    animation: modal-backdrop-in 180ms ease-out both;
+  }
+
+  .modal-panel-animate {
+    animation: modal-panel-in 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
   }
 
   .startup-loader {
@@ -253,6 +488,108 @@
   }
 }
 
+@keyframes app-background-drift-one {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    transform: translate3d(5rem, 2.5rem, 0) scale(1.08);
+  }
+}
+
+@keyframes app-background-drift-two {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    transform: translate3d(-4rem, -3rem, 0) scale(1.12);
+  }
+}
+
+@keyframes app-grid-float {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(0, -72px, 0);
+  }
+}
+
+@keyframes page-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes topbar-slide {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes nav-item-enter {
+  0% {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes surface-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes list-item-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes modal-backdrop-in {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes modal-panel-in {
+  0% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 @keyframes startup-loader-float {
   0%,
   100% {
@@ -322,3 +659,13 @@
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

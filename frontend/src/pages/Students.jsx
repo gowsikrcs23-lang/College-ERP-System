@@ -15,6 +15,9 @@ const Students = () => {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [studentDetails, setStudentDetails] = useState({});
   const [clearCountLoadingId, setClearCountLoadingId] = useState('');
+  const [blockReasonDrafts, setBlockReasonDrafts] = useState({});
+  const [blockReasonOpenId, setBlockReasonOpenId] = useState('');
+  const [blockLoadingId, setBlockLoadingId] = useState('');
   const [nextStudentId, setNextStudentId] = useState('');
   const [formData, setFormData] = useState({
     studentId: '',
@@ -33,7 +36,8 @@ const Students = () => {
       fatherName: '',
       motherName: '',
       guardianContact: '',
-      emergencyContact: ''
+      emergencyContact: '',
+      mailBlockReason: ''
     },
     address: {
       street: '',
@@ -241,20 +245,29 @@ const Students = () => {
   };
 
   const handleBlockMail = async (studentId) => {
-    try {
-      const reasonInput = window.prompt('Enter reason for blocking this student mail:');
-      const reason = (reasonInput || '').trim();
-      if (!reason) {
-        toast.error('Block reason is required');
-        return;
-      }
+    if (blockReasonOpenId !== studentId) {
+      setBlockReasonOpenId(studentId);
+      return;
+    }
 
+    const reason = String(blockReasonDrafts[studentId] || '').trim();
+    if (!reason) {
+      toast.error('Block reason is required');
+      return;
+    }
+
+    try {
+      setBlockLoadingId(studentId);
       await studentsAPI.blockMail(studentId, { reason });
       toast.success('Student email blocked successfully');
+      setBlockReasonDrafts((prev) => ({ ...prev, [studentId]: '' }));
+      setBlockReasonOpenId('');
       await fetchStudents();
       await refreshSelectedStudent(studentId);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to block student email');
+    } finally {
+      setBlockLoadingId('');
     }
   };
 
@@ -349,7 +362,8 @@ const Students = () => {
         fatherName: '',
         motherName: '',
         guardianContact: '',
-        emergencyContact: ''
+        emergencyContact: '',
+        mailBlockReason: ''
       },
       address: {
         street: '',
@@ -380,7 +394,8 @@ const Students = () => {
         fatherName: '',
         motherName: '',
         guardianContact: '',
-        emergencyContact: ''
+        emergencyContact: '',
+        mailBlockReason: ''
       },
       address: student.address || {
         street: '',
@@ -423,7 +438,9 @@ const Students = () => {
       .map((entry, idx) => ({
         id: `${entry.blockedAt || idx}-${idx}`,
         text: entry.reason,
-        date: entry.blockedAt ? new Date(entry.blockedAt).toLocaleDateString() : ''
+        date: entry.blockedAt ? new Date(entry.blockedAt).toLocaleDateString() : '',
+        facultyApprovedByName: entry.facultyApprovedByName || '',
+        facultyApprovedByFacultyId: entry.facultyApprovedByFacultyId || ''
       }));
   };
 
@@ -437,7 +454,7 @@ const Students = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Students Management</h1>
         {canManageStudentRecords && (
           <button
@@ -484,10 +501,14 @@ const Students = () => {
       {/* Students Table */}
       <div className="card">
         <div className="space-y-3 p-4">
-          {filteredStudents.map((student) => (
-            <div key={student._id} className="bg-white border rounded-lg overflow-hidden">
+          {filteredStudents.map((student, index) => (
+            <div
+              key={student._id}
+              style={{ animationDelay: `${index * 45}ms` }}
+              className="list-item-animate bg-white border rounded-lg overflow-hidden"
+            >
               <div className="p-4">
-                <div className="flex items-center justify-between mb-2">
+                <div className="mb-2 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                   <div className="flex-1 min-w-0">
                     <div className="text-base font-semibold text-gray-900 truncate">
                       {student.firstName} {student.lastName}
@@ -496,8 +517,13 @@ const Students = () => {
                     {student.bio?.registrationNumber && (
                       <p className="text-xs text-gray-400 mt-1">Reg: {student.bio.registrationNumber}</p>
                     )}
+                    {student.bio?.mailBlockReason && (
+                      <p className="mt-2 text-xs text-red-600 line-clamp-2">
+                        Block reason: {student.bio.mailBlockReason}
+                      </p>
+                    )}
                   </div>
-                  <div className="flex gap-2 ml-2">
+                  <div className="ml-0 flex flex-wrap gap-2 lg:ml-2 lg:justify-end">
                     <button
                       onClick={() => handleStudentClick(student)}
                       className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
@@ -509,7 +535,7 @@ const Students = () => {
                         onClick={() => handleBlockMail(student._id)}
                         className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700"
                       >
-                        Block Mail
+                        {blockReasonOpenId === student._id ? 'Confirm Block' : 'Block Mail'}
                       </button>
                     )}
                     {isFaculty && student.user?.isEmailBlocked && !student.user?.unblockApprovedByFaculty && (
@@ -550,7 +576,7 @@ const Students = () => {
                     )}
                   </div>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2 md:grid-cols-4">
                   <div>
                     <span className="text-gray-500">ID:</span>
                     <span className="ml-1 font-medium">{student.studentId}</span>
@@ -572,6 +598,37 @@ const Students = () => {
                     <span className="ml-1 font-medium">{student.user?.emailBlockCount || 0}</span>
                   </div>
                 </div>
+                {isManagement && !student.user?.isEmailBlocked && blockReasonOpenId === student._id && (
+                  <div className="mt-3 rounded-lg border border-red-200 bg-red-50/60 p-3">
+                    <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-red-700">
+                      Mail block reason
+                    </label>
+                    <div className="flex flex-col gap-2 md:flex-row">
+                      <textarea
+                        rows="2"
+                        value={blockReasonDrafts[student._id] || ''}
+                        onChange={(e) => setBlockReasonDrafts((prev) => ({ ...prev, [student._id]: e.target.value }))}
+                        className="input-field min-h-[72px] resize-none border-red-200 bg-white text-sm focus:ring-red-400"
+                        placeholder="Type the reason for blocking this student's mail"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleBlockMail(student._id)}
+                        disabled={blockLoadingId === student._id}
+                        className="px-3 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 md:self-start"
+                      >
+                        {blockLoadingId === student._id ? 'Blocking...' : 'Block Mail'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBlockReasonOpenId('')}
+                        className="px-3 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50 md:self-start"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
               {selectedStudent?._id === student._id && (
                 <div className="border-t bg-gradient-to-r from-blue-50 to-indigo-50 p-4">
@@ -674,13 +731,12 @@ const Students = () => {
                             <User className="h-4 w-4 text-indigo-600" />
                             Personal Information
                           </h4>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                          <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2 md:grid-cols-4">
                             <div><span className="text-gray-500">Full Name:</span> <span className="font-medium">{student.bio?.fullName || 'N/A'}</span></div>
                             <div><span className="text-gray-500">Registration:</span> <span className="font-medium">{student.bio?.registrationNumber || 'N/A'}</span></div>
                             <div><span className="text-gray-500">DOB:</span> <span className="font-medium">{student.dateOfBirth ? new Date(student.dateOfBirth).toLocaleDateString() : 'N/A'}</span></div>
                             <div><span className="text-gray-500">Phone:</span> <span className="font-medium">{student.phone || 'N/A'}</span></div>
                             <div><span className="text-gray-500">Mail Block Count:</span> <span className="font-medium">{student.user?.emailBlockCount || 0}</span></div>
-                            <div><span className="text-gray-500">Current Block Reason:</span> <span className="font-medium">{student.user?.emailBlockReason || 'N/A'}</span></div>
                             <div><span className="text-gray-500">Father:</span> <span className="font-medium">{student.bio?.fatherName || 'N/A'}</span></div>
                             <div><span className="text-gray-500">Mother:</span> <span className="font-medium">{student.bio?.motherName || 'N/A'}</span></div>
                             <div><span className="text-gray-500">Guardian:</span> <span className="font-medium">{student.bio?.guardianContact || 'N/A'}</span></div>
@@ -747,7 +803,7 @@ const Students = () => {
                                 <div className="mt-2 space-y-1">
                                   {getAllBlockReasons(student).map((item, idx) => (
                                     <p key={item.id} className="text-xs text-gray-600">
-                                      {idx + 1}. {item.text}{item.date ? ` (${item.date})` : ''}
+                                      {idx + 1}. {item.text}{item.date ? ` (${item.date})` : ''}{item.facultyApprovedByName ? ` | Approved by ${item.facultyApprovedByName} (${item.facultyApprovedByFacultyId || 'ID N/A'})` : ''}
                                     </p>
                                   ))}
                                 </div>
@@ -771,9 +827,9 @@ const Students = () => {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+        <div className="modal-backdrop-animate fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
           <div className="relative min-h-screen flex items-center justify-center p-4">
-            <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
+            <div className="modal-panel-animate relative bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
               {/* Header */}
               <div className="bg-primary-600 px-6 py-4 flex justify-between items-center">
                 <h3 className="text-xl font-bold text-white">
@@ -791,7 +847,7 @@ const Students = () => {
               <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
                 <form onSubmit={handleSubmit} className="space-y-4">
                   {/* Basic Info Row 1 */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">Student ID</label>
                       <input
@@ -884,7 +940,7 @@ const Students = () => {
 
                   {/* Password and Phone Row for edit */}
                   {editingStudent && (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
                       <div>
                         <label className="block text-xs font-medium text-gray-700 mb-1">Phone</label>
                         <input
@@ -953,7 +1009,7 @@ const Students = () => {
 
                   {/* Department and Semester for new student */}
                   {!editingStudent && (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
                       <div>
                         <label className="block text-xs font-medium text-gray-700 mb-1">Department</label>
                         <select
@@ -1026,13 +1082,14 @@ const Students = () => {
                   {/* Bio Details */}
                   <div className="border-t pt-3">
                     <h4 className="font-semibold text-gray-700 text-sm mb-2">Bio Details</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
                       <input type="text" placeholder="Full Name" className="input-field text-sm" value={formData.bio.fullName} onChange={(e) => setFormData({...formData, bio: {...formData.bio, fullName: e.target.value}})} />
                       <input type="text" placeholder="Reg. Number" className="input-field text-sm" value={formData.bio.registrationNumber} onChange={(e) => setFormData({...formData, bio: {...formData.bio, registrationNumber: e.target.value}})} />
                       <input type="text" placeholder="Father's Name" className="input-field text-sm" value={formData.bio.fatherName} onChange={(e) => setFormData({...formData, bio: {...formData.bio, fatherName: e.target.value}})} />
                       <input type="text" placeholder="Mother's Name" className="input-field text-sm" value={formData.bio.motherName} onChange={(e) => setFormData({...formData, bio: {...formData.bio, motherName: e.target.value}})} />
                       <input type="text" placeholder="Guardian Contact" className="input-field text-sm" maxLength="10" value={formData.bio.guardianContact} onChange={(e) => setFormData({...formData, bio: {...formData.bio, guardianContact: e.target.value}})} />
                       <input type="text" placeholder="Emergency Contact" className="input-field text-sm" maxLength="10" value={formData.bio.emergencyContact} onChange={(e) => setFormData({...formData, bio: {...formData.bio, emergencyContact: e.target.value}})} />
+                      <input type="text" placeholder="Mail Block Reason" className="input-field text-sm md:col-span-3" value={formData.bio.mailBlockReason || ''} onChange={(e) => setFormData({...formData, bio: {...formData.bio, mailBlockReason: e.target.value}})} />
                     </div>
                   </div>
 

@@ -111,7 +111,8 @@ const getAttendanceStats = async (req, res) => {
           _id: {
             student: '$student',
             fn: '$studentInfo.fn',
-            name: { $concat: ['$studentInfo.firstName', ' ', '$studentInfo.lastName'] }
+            name: { $concat: ['$studentInfo.firstName', ' ', '$studentInfo.lastName'] },
+            department: '$studentInfo.department'
           },
           totalClasses: { $sum: 1 },
           presentClasses: {
@@ -125,6 +126,7 @@ const getAttendanceStats = async (req, res) => {
           studentId: '$_id.student',
           fn: '$_id.fn',
           name: '$_id.name',
+          department: '$_id.department',
           totalClasses: 1,
           presentClasses: 1,
           absentClasses: { $subtract: ['$totalClasses', '$presentClasses'] },
@@ -138,7 +140,7 @@ const getAttendanceStats = async (req, res) => {
           }
         }
       },
-      { $sort: { fn: 1 } }
+      { $sort: { department: 1, name: 1, fn: 1 } }
     ]);
 
     res.json(stats);

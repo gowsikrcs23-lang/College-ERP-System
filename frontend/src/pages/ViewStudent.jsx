@@ -20,6 +20,21 @@ const ViewStudent = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('details');
 
+  const getLatestApprovalDetails = (studentData) => {
+    const history = Array.isArray(studentData?.user?.emailBlockHistory)
+      ? [...studentData.user.emailBlockHistory]
+      : [];
+
+    const latestApprovedEntry = history.reverse().find(
+      (entry) => entry?.facultyApprovedByName || entry?.facultyApprovedByFacultyId
+    );
+
+    return {
+      facultyName: latestApprovedEntry?.facultyApprovedByName || '',
+      facultyId: latestApprovedEntry?.facultyApprovedByFacultyId || ''
+    };
+  };
+
   useEffect(() => {
     fetchStudentData();
     
@@ -161,6 +176,7 @@ const ViewStudent = () => {
   }
 
   const marksSummary = getMarksSummary();
+  const latestApproval = getLatestApprovalDetails(student);
   const getExamAverage = (examResults) => {
     if (!examResults.length) return '0.0';
     const totalMarks = examResults.reduce((sum, result) => sum + getMarksValue(result), 0);
@@ -251,6 +267,9 @@ const ViewStudent = () => {
               <p className="text-blue-100 text-sm truncate">ID: {student.studentId}</p>
               {student.bio?.registrationNumber && (
                 <p className="text-blue-100 text-sm truncate">Reg: {student.bio.registrationNumber}</p>
+              )}
+              {student.bio?.mailBlockReason && (
+                <p className="mt-1 text-sm text-red-100 break-words">Block Reason: {student.bio.mailBlockReason}</p>
               )}
             </div>
           </div>
@@ -365,6 +384,9 @@ const ViewStudent = () => {
                   <div className="min-w-0">
                     <p className="text-sm text-gray-600">Email</p>
                     <p className="font-medium text-gray-900 break-words">{student.email}</p>
+                    {student.bio?.mailBlockReason && (
+                      <p className="mt-1 text-xs text-red-600 break-words">Block Reason: {student.bio.mailBlockReason}</p>
+                    )}
                   </div>
                 </div>
 
@@ -481,6 +503,24 @@ const ViewStudent = () => {
                     <p className="font-medium text-gray-900">{student.bio.emergencyContact}</p>
                   </div>
                 )}
+                {student.bio.mailBlockReason && (
+                  <div className="min-w-0 md:col-span-2">
+                    <p className="text-sm text-gray-600">Mail Block Reason</p>
+                    <p className="font-medium text-gray-900 break-words">{student.bio.mailBlockReason}</p>
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <p className="text-sm text-gray-600">Mail Block Count</p>
+                  <p className="font-medium text-gray-900">{student.user?.emailBlockCount || 0}</p>
+                </div>
+                <div className="min-w-0 md:col-span-2">
+                  <p className="text-sm text-gray-600">Approved By Faculty</p>
+                  <p className="font-medium text-gray-900 break-words">
+                    {latestApproval.facultyName
+                      ? `${latestApproval.facultyName} (${latestApproval.facultyId || 'ID N/A'})`
+                      : 'Pending / N/A'}
+                  </p>
+                </div>
               </div>
             </div>
           )}

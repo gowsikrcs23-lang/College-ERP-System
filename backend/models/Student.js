@@ -62,7 +62,8 @@ const studentSchema = new mongoose.Schema({
     fatherName: String,
     motherName: String,
     guardianContact: String,
-    emergencyContact: String
+    emergencyContact: String,
+    mailBlockReason: String
   },
   user: {
     type: mongoose.Schema.Types.ObjectId,

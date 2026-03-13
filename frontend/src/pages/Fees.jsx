@@ -116,7 +116,7 @@ const AccountantFeesView = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Fee Management</h1>
         <button onClick={() => setShowModal(true)} className="btn-primary flex items-center gap-2">
           <Plus className="h-4 w-4" />
@@ -195,7 +195,7 @@ const AccountantFeesView = () => {
                   <tr>
                     <td colSpan="7" className="px-6 py-4 bg-gray-50">
                       <div className="space-y-4">
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
                           <div>
                             <p className="text-xs text-gray-600">Tuition Fee</p>
                             <p className="text-sm font-semibold text-gray-900">₹{fee.tuitionFee}</p>
@@ -240,7 +240,8 @@ const AccountantFeesView = () => {
       {/* Create Fee Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+          <div className="flex min-h-screen items-center justify-center p-4">
+            <div className="w-full max-w-md rounded-md border bg-white p-5 shadow-lg">
             <h3 className="text-lg font-bold text-gray-900 mb-4">Create Fee Record</h3>
             <form onSubmit={handleSubmit} className="space-y-4">
               <select className="input-field" value={formData.student} onChange={(e) => setFormData({...formData, student: e.target.value})} required>
@@ -249,7 +250,7 @@ const AccountantFeesView = () => {
                   <option key={s._id} value={s._id}>{s.firstName} {s.lastName} ({s.studentId})</option>
                 ))}
               </select>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <select className="input-field" value={formData.semester} onChange={(e) => setFormData({...formData, semester: e.target.value})} required>
                   <option value="">Semester</option>
                   {[1,2,3,4,5,6,7,8].map(sem => <option key={sem} value={sem}>{sem}</option>)}
@@ -266,11 +267,12 @@ const AccountantFeesView = () => {
               <input type="number" placeholder="Lab Fee" className="input-field" value={formData.labFee} onChange={(e) => setFormData({...formData, labFee: e.target.value})} />
               <input type="number" placeholder="Other Fees" className="input-field" value={formData.otherFees} onChange={(e) => setFormData({...formData, otherFees: e.target.value})} />
               <input type="date" className="input-field" value={formData.dueDate} onChange={(e) => setFormData({...formData, dueDate: e.target.value})} required />
-              <div className="flex justify-end space-x-3">
+              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                 <button type="button" onClick={() => setShowModal(false)} className="btn-secondary">Cancel</button>
                 <button type="submit" className="btn-primary">Create</button>
               </div>
             </form>
+          </div>
           </div>
         </div>
       )}
@@ -278,7 +280,8 @@ const AccountantFeesView = () => {
       {/* Payment Modal */}
       {showPaymentModal && selectedFee && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+          <div className="flex min-h-screen items-center justify-center p-4">
+            <div className="w-full max-w-md rounded-md border bg-white p-5 shadow-lg">
             <h3 className="text-lg font-bold text-gray-900 mb-4">Record Payment</h3>
             <p className="text-sm text-gray-600 mb-4">Due Amount: ₹{selectedFee.dueAmount}</p>
             <form onSubmit={handlePayment} className="space-y-4">
@@ -290,11 +293,12 @@ const AccountantFeesView = () => {
                 <option value="bank_transfer">Bank Transfer</option>
               </select>
               <input type="text" placeholder="Transaction ID (optional)" className="input-field" value={paymentData.transactionId} onChange={(e) => setPaymentData({...paymentData, transactionId: e.target.value})} />
-              <div className="flex justify-end space-x-3">
+              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                 <button type="button" onClick={() => setShowPaymentModal(false)} className="btn-secondary">Cancel</button>
                 <button type="submit" className="btn-primary">Record Payment</button>
               </div>
             </form>
+          </div>
           </div>
         </div>
       )}
@@ -335,7 +339,7 @@ const ViewOnlyFeesView = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-gray-900">View Fee Records</h1>
         <DollarSign className="h-6 w-6 text-primary-600" />
       </div>
@@ -402,7 +406,7 @@ const ViewOnlyFeesView = () => {
                     <tr>
                       <td colSpan="8" className="px-6 py-4 bg-gray-50">
                         <div className="space-y-4">
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
                             <div>
                               <p className="text-xs text-gray-600">Tuition Fee</p>
                               <p className="text-sm font-semibold text-gray-900">₹{fee.tuitionFee}</p>
@@ -473,7 +477,7 @@ const StudentFeesView = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-gray-900">My Fee Records</h1>
         <DollarSign className="h-6 w-6 text-primary-600" />
       </div>
@@ -487,7 +491,7 @@ const StudentFeesView = () => {
         <div className="space-y-4">
           {fees.map((fee) => (
             <div key={fee._id} className="card">
-              <div className="flex justify-between items-start mb-4">
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">Semester {fee.semester}</h3>
                   <p className="text-sm text-gray-600">{fee.academicYear}</p>
@@ -501,7 +505,7 @@ const StudentFeesView = () => {
                   {fee.status}
                 </span>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
                 <div>
                   <p className="text-sm text-gray-600">Total Amount</p>
                   <p className="text-lg font-semibold text-gray-900">₹{fee.totalAmount}</p>

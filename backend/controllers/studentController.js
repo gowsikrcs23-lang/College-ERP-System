@@ -189,7 +189,10 @@ const blockStudentMail = async (req, res) => {
     user.unblockApprovedByFaculty = false;
     user.unblockApprovedAt = null;
     user.unblockApprovedBy = null;
+    student.bio = student.bio || {};
+    student.bio.mailBlockReason = reason;
     await user.save();
+    await student.save();
 
     const updatedStudent = await Student.findById(req.params.id).populate('user', studentUserProjection);
     res.json({
@@ -229,6 +232,8 @@ const approveStudentMailUnblock = async (req, res) => {
       if (latest && !latest.unblockedAt) {
         latest.facultyApprovedAt = new Date();
         latest.facultyApprovedBy = req.user.id;
+        latest.facultyApprovedByName = `${facultyProfile.firstName} ${facultyProfile.lastName}`.trim();
+        latest.facultyApprovedByFacultyId = facultyProfile.facultyId;
       }
     }
     await student.user.save();
@@ -265,6 +270,8 @@ const unblockStudentMail = async (req, res) => {
     student.user.unblockApprovedByFaculty = false;
     student.user.unblockApprovedAt = null;
     student.user.unblockApprovedBy = null;
+    student.bio = student.bio || {};
+    student.bio.mailBlockReason = '';
     if (Array.isArray(student.user.emailBlockHistory) && student.user.emailBlockHistory.length > 0) {
       const latest = student.user.emailBlockHistory[student.user.emailBlockHistory.length - 1];
       if (latest && !latest.unblockedAt) {
@@ -273,6 +280,7 @@ const unblockStudentMail = async (req, res) => {
       }
     }
     await student.user.save();
+    await student.save();
 
     const updatedStudent = await Student.findById(req.params.id).populate('user', studentUserProjection);
     res.json({

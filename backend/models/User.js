@@ -46,6 +46,8 @@ const userSchema = new mongoose.Schema({
     blockedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     facultyApprovedAt: { type: Date },
     facultyApprovedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    facultyApprovedByName: { type: String, trim: true },
+    facultyApprovedByFacultyId: { type: String, trim: true },
     unblockedAt: { type: Date },
     unblockedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
   }],
