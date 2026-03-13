@@ -212,12 +212,12 @@ const Notifications = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="max-w-full space-y-6 overflow-x-hidden">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Notifications</h1>
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
           {canDeleteAll() && notifications.length > 0 && (
-            <button onClick={handleDeleteAll} className="btn-danger flex items-center gap-2">
+            <button onClick={handleDeleteAll} className="btn-danger flex w-full items-center justify-center gap-2 sm:w-auto">
               <Trash2 className="h-4 w-4" />
               Delete All
             </button>
@@ -228,7 +228,7 @@ const Notifications = () => {
                 resetForm();
                 setShowModal(true);
               }}
-              className="btn-primary flex items-center gap-2"
+              className="btn-primary flex w-full items-center justify-center gap-2 sm:w-auto"
             >
               <Plus className="h-4 w-4" />
               Send Notification
@@ -239,8 +239,8 @@ const Notifications = () => {
 
       {/* Filters */}
       <div className="card">
-        <div className="flex gap-4">
-          <select className="input-field" value={filters.type} onChange={(e) => handleFilterChange('type', e.target.value)}>
+        <div className="flex flex-col gap-4 sm:flex-row">
+          <select className="input-field min-w-0" value={filters.type} onChange={(e) => handleFilterChange('type', e.target.value)}>
             <option value="">All Types</option>
             <option value="general">General</option>
             <option value="college">College</option>
@@ -252,7 +252,7 @@ const Notifications = () => {
             <option value="announcement">Announcement</option>
             <option value="staff">Staff</option>
           </select>
-          <select className="input-field" value={filters.targetAudience} onChange={(e) => handleFilterChange('targetAudience', e.target.value)}>
+          <select className="input-field min-w-0" value={filters.targetAudience} onChange={(e) => handleFilterChange('targetAudience', e.target.value)}>
             <option value="">All Audiences</option>
             <option value="all">All</option>
             <option value="students">Students</option>
@@ -269,26 +269,26 @@ const Notifications = () => {
       <div className="space-y-4">
         {notifications.length > 0 ? (
           notifications.map((notification) => (
-            <div key={notification._id} className="card">
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-lg font-medium text-gray-900">{notification.title}</h3>
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getTypeColor(notification.type)}`}>
+            <div key={notification._id} className="card max-w-full overflow-hidden">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0 flex-1">
+                  <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+                    <h3 className="break-words text-lg font-medium text-gray-900">{notification.title}</h3>
+                    <span className={`inline-flex w-fit max-w-full break-words px-2 py-1 text-xs font-semibold rounded-full ${getTypeColor(notification.type)}`}>
                       {notification.type}
                     </span>
-                    <div className="flex items-center gap-1 text-sm text-gray-500">
+                    <div className="flex min-w-0 items-center gap-1 text-sm text-gray-500">
                       {getAudienceIcon(notification.targetAudience)}
-                      <span className="capitalize">{notification.targetAudience}</span>
+                      <span className="break-words capitalize">{notification.targetAudience}</span>
                     </div>
                   </div>
-                  <p className="text-gray-700 mb-3">{notification.message}</p>
-                  <div className="flex items-center gap-4 text-sm text-gray-500">
+                  <p className="mb-3 break-words text-gray-700">{notification.message}</p>
+                  <div className="flex min-w-0 flex-col gap-2 text-sm text-gray-500 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
                     <span>Created: {new Date(notification.createdAt).toLocaleDateString()}</span>
                     {notification.createdBy && (
-                      <span>By: {notification.createdBy.email}</span>
+                      <span className="break-all">By: {notification.createdBy.email}</span>
                     )}
-                    {notification.department && <span>Department: {notification.department}</span>}
+                    {notification.department && <span className="break-words">Department: {notification.department}</span>}
                     {notification.semester && <span>Semester: {notification.semester}</span>}
                     {notification.expiryDate && (
                       <span>Expires: {new Date(notification.expiryDate).toLocaleDateString()}</span>
@@ -296,7 +296,7 @@ const Notifications = () => {
                   </div>
                 </div>
                 {canDeleteNotification(notification) && (
-                  <div className="flex gap-2 ml-4">
+                  <div className="flex shrink-0 gap-2 self-end sm:ml-4 sm:self-start">
                     <button
                       onClick={() => handleDeleteByCreator(notification.createdBy?._id)}
                       className="text-orange-600 hover:text-orange-900"
@@ -327,7 +327,7 @@ const Notifications = () => {
       {/* Create Notification Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+          <div className="relative top-6 mx-auto w-[calc(100%-1rem)] max-w-md overflow-hidden rounded-md border bg-white p-4 shadow-lg sm:top-20 sm:w-[calc(100%-2rem)] sm:p-5">
             <h3 className="text-lg font-bold text-gray-900 mb-4">Send Notification</h3>
             
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -428,15 +428,15 @@ const Notifications = () => {
                 onChange={(e) => setFormData({...formData, expiryDate: e.target.value})}
               />
 
-              <div className="flex justify-end space-x-3">
+              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end sm:space-x-0">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="btn-secondary"
+                  className="btn-secondary w-full sm:w-auto"
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary flex items-center gap-2">
+                <button type="submit" className="btn-primary flex w-full items-center justify-center gap-2 sm:w-auto">
                   <Send className="h-4 w-4" />
                   Send
                 </button>
