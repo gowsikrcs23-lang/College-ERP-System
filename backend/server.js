@@ -17,9 +17,18 @@ const allowedOrigins = (process.env.FRONTEND_URL || '')
   .map((origin) => origin.trim())
   .filter(Boolean);
 
+const isAllowedOrigin = (origin) => {
+  if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+    return true;
+  }
+
+  // Allow Vercel preview deployments in addition to configured production domains.
+  return /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin);
+};
+
 app.use(cors({
   origin(origin, callback) {
-    if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+    if (isAllowedOrigin(origin)) {
       return callback(null, true);
     }
 
