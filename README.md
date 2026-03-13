@@ -306,3 +306,43 @@ For support and questions, please create an issue in the repository or contact t
 ---
 
 **Built with ❤️ for educational purposes**
+## Deployment Notes
+
+This repository is configured for a split deployment:
+
+- Backend on Render
+- Frontend on Vercel
+
+### Render Backend
+
+Use the included `render.yaml`.
+
+Required Render environment variables:
+
+```env
+MONGODB_URI=your_mongodb_atlas_connection_string
+JWT_SECRET=your_strong_secret
+FRONTEND_URL=https://your-frontend.vercel.app
+```
+
+Optional:
+
+```env
+JWT_EXPIRE=7d
+NODE_ENV=production
+```
+
+### Vercel Frontend
+
+Use the included `vercel.json`.
+
+Required Vercel environment variable:
+
+```env
+VITE_API_URL=https://your-backend.onrender.com
+```
+
+Example env files are included in:
+
+- `backend/.env.example`
+- `frontend/.env.example`

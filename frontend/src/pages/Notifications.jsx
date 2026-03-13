@@ -7,6 +7,7 @@ import axios from 'axios';
 
 const Notifications = () => {
   const { user } = useAuth();
+  const isFacultyScopedRole = user?.role === 'faculty' || user?.role === 'hod';
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -64,6 +65,21 @@ const Notifications = () => {
   useEffect(() => {
     fetchNotifications();
   }, []);
+
+  useEffect(() => {
+    if (!showModal) return;
+
+    const department = isFacultyScopedRole ? (user?.profile?.department || '') : '';
+    setFormData((current) => {
+      const shouldUseOwnDepartment =
+        current.targetAudience === 'students' || current.targetAudience === 'department';
+
+      return {
+        ...current,
+        department: shouldUseOwnDepartment ? department : ''
+      };
+    });
+  }, [showModal, isFacultyScopedRole, user?.profile?.department]);
 
   const fetchNotifications = async (filterParams = {}) => {
     try {
@@ -347,7 +363,20 @@ const Notifications = () => {
               <select
                 className="input-field"
                 value={formData.targetAudience}
-                onChange={(e) => setFormData({...formData, targetAudience: e.target.value})}
+                onChange={(e) => {
+                  const nextAudience = e.target.value;
+                  const nextDepartment =
+                    isFacultyScopedRole && (nextAudience === 'students' || nextAudience === 'department')
+                      ? (user?.profile?.department || '')
+                      : '';
+
+                  setFormData({
+                    ...formData,
+                    targetAudience: nextAudience,
+                    department: nextDepartment,
+                    semester: nextAudience === 'students' ? formData.semester : ''
+                  });
+                }}
                 required
               >
                 <option value="">Select Audience</option>
@@ -362,6 +391,7 @@ const Notifications = () => {
                   value={formData.department}
                   onChange={(e) => setFormData({...formData, department: e.target.value})}
                   required
+                  disabled={isFacultyScopedRole}
                 >
                   <option value="">Select Department</option>
                   <option value="Computer Science">Computer Science</option>
@@ -369,6 +399,12 @@ const Notifications = () => {
                   <option value="Mechanical">Mechanical</option>
                   <option value="Civil">Civil</option>
                 </select>
+              )}
+
+              {isFacultyScopedRole && (formData.targetAudience === 'students' || formData.targetAudience === 'department') && (
+                <p className="text-sm text-gray-500">
+                  Notifications will be sent to your department: {user?.profile?.department || 'Not assigned'}
+                </p>
               )}
 
               {formData.targetAudience === 'students' && formData.department && (

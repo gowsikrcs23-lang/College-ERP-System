@@ -2,10 +2,57 @@ const Notification = require('../models/Notification');
 const Student = require('../models/Student');
 const Faculty = require('../models/Faculty');
 
+const normalizeNotificationPayload = async (req) => {
+  const payload = { ...req.body };
+
+  if (payload.semester === '' || payload.semester === undefined) {
+    delete payload.semester;
+  } else if (payload.semester !== null) {
+    payload.semester = Number(payload.semester);
+  }
+
+  if (payload.expiryDate === '') {
+    delete payload.expiryDate;
+  }
+
+  if (typeof payload.department === 'string') {
+    payload.department = payload.department.trim();
+    if (!payload.department) {
+      delete payload.department;
+    }
+  }
+
+  if (req.user.role === 'faculty' || req.user.role === 'hod') {
+    const facultyProfile = await Faculty.findById(req.user.profile).select('department').lean();
+
+    if (!facultyProfile?.department) {
+      const error = new Error('Faculty profile not found');
+      error.statusCode = 403;
+      throw error;
+    }
+
+    if (payload.targetAudience === 'students' || payload.targetAudience === 'department') {
+      payload.department = facultyProfile.department;
+    }
+  }
+
+  if (payload.targetAudience !== 'students') {
+    delete payload.semester;
+  }
+
+  if (payload.targetAudience !== 'students' && payload.targetAudience !== 'department') {
+    delete payload.department;
+  }
+
+  return payload;
+};
+
 const createNotification = async (req, res) => {
   try {
+    const payload = await normalizeNotificationPayload(req);
+
     const notification = await Notification.create({
-      ...req.body,
+      ...payload,
       createdBy: req.user.id
     });
 
@@ -14,7 +61,7 @@ const createNotification = async (req, res) => {
       notification
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(error.statusCode || 500).json({ message: error.message });
   }
 };
 
@@ -39,6 +86,10 @@ const getNotifications = async (req, res) => {
 
     if (userRole === 'student') {
       const studentProfile = await Student.findById(req.user.profile).select('department semester').lean();
+      if (!studentProfile) {
+        return res.status(404).json({ message: 'Student profile not found' });
+      }
+
       audienceFilters.push({ targetAudience: 'all' });
       audienceFilters.push({
         targetAudience: 'students',
@@ -80,6 +131,10 @@ const getNotifications = async (req, res) => {
       }
     } else if (userRole === 'faculty' || userRole === 'hod') {
       const facultyProfile = await Faculty.findById(req.user.profile).select('department').lean();
+      if (!facultyProfile) {
+        return res.status(404).json({ message: 'Faculty profile not found' });
+      }
+
       audienceFilters.push({ targetAudience: 'all' });
       audienceFilters.push({
         targetAudience: 'faculty',
