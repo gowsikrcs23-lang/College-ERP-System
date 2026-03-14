@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { CheckCircle, XCircle, Clock, Edit } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Edit, Trash2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const Admissions = () => {
@@ -11,6 +11,7 @@ const Admissions = () => {
   const [filter, setFilter] = useState('all');
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingApp, setEditingApp] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
   const [studentData, setStudentData] = useState({
     email: '',
     password: '',
@@ -56,6 +57,24 @@ const Admissions = () => {
       fetchApplications();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to approve application');
+    }
+  };
+
+  const handleDelete = async (id, applicantName) => {
+    const confirmed = window.confirm(`Delete the application for ${applicantName}?`);
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setDeletingId(id);
+      await axios.delete(`/api/admissions/${id}`);
+      toast.success('Application deleted');
+      fetchApplications();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to delete application');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -154,6 +173,19 @@ const Admissions = () => {
                   <p className="font-medium">{app.previousSchool}</p>
                 </div>
               </div>
+
+              {['admission', 'admin', 'management'].includes(user?.role) && (
+                <div className="flex flex-wrap gap-2 mb-4">
+                  <button
+                    onClick={() => handleDelete(app._id, `${app.firstName} ${app.lastName}`)}
+                    disabled={deletingId === app._id}
+                    className="flex items-center px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    {deletingId === app._id ? 'Deleting...' : 'Delete'}
+                  </button>
+                </div>
+              )}
 
               {app.status === 'pending' && user?.role === 'admission' && (
                 <div className="flex space-x-2">
