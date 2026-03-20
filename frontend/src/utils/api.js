@@ -4,12 +4,12 @@ const API_BASE_URL = '/api';
 
 // Students API
 export const studentsAPI = {
-  getAll: () => axios.get(`${API_BASE_URL}/students`),
+  getAll: (params) => axios.get(`${API_BASE_URL}/students`, { params }),
   getById: (id) => axios.get(`${API_BASE_URL}/students/${id}`),
   create: (data) => axios.post(`${API_BASE_URL}/students`, data),
   update: (id, data) => axios.put(`${API_BASE_URL}/students/${id}`, data),
   delete: (id) => axios.delete(`${API_BASE_URL}/students/${id}`),
-  getByDepartment: (department) => axios.get(`${API_BASE_URL}/students/department/${department}`),
+  getByDepartment: (department, params) => axios.get(`${API_BASE_URL}/students/department/${department}`, { params }),
   blockMail: (id, data) => axios.put(`${API_BASE_URL}/students/${id}/block-mail`, data),
   approveUnblock: (id) => axios.put(`${API_BASE_URL}/students/${id}/approve-unblock`),
   unblockMail: (id) => axios.put(`${API_BASE_URL}/students/${id}/unblock-mail`),
@@ -25,9 +25,19 @@ export const facultyAPI = {
   delete: (id) => axios.delete(`${API_BASE_URL}/faculty/${id}`)
 };
 
+// Class Faculty API
+export const classFacultyAPI = {
+  getAll: (params) => axios.get(`${API_BASE_URL}/class-faculty`, { params }),
+  setAssignment: (data) => axios.put(`${API_BASE_URL}/class-faculty`, data)
+};
+
 // Attendance API
 export const attendanceAPI = {
   mark: (data) => axios.post(`${API_BASE_URL}/attendance/mark`, data),
+  getRequests: (params) => axios.get(`${API_BASE_URL}/attendance/requests`, { params }),
+  getMyRequests: (params) => axios.get(`${API_BASE_URL}/attendance/requests/mine`, { params }),
+  approveRequest: (id) => axios.put(`${API_BASE_URL}/attendance/requests/${id}/approve`),
+  rejectRequest: (id, data) => axios.put(`${API_BASE_URL}/attendance/requests/${id}/reject`, data),
   getByStudent: (studentId, params) => axios.get(`${API_BASE_URL}/attendance/student/${studentId}`, { params }),
   getByClass: (params) => axios.get(`${API_BASE_URL}/attendance/class`, { params }),
   getStats: (params) => axios.get(`${API_BASE_URL}/attendance/stats`, { params }),

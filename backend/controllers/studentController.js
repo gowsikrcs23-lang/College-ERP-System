@@ -19,7 +19,8 @@ const getFacultyDepartment = async (req) => {
 
 const getAllStudents = async (req, res) => {
   try {
-    const facultyDepartment = await getFacultyDepartment(req);
+    const attendanceScope = String(req.query?.scope || '').toLowerCase() === 'attendance';
+    const facultyDepartment = attendanceScope ? null : await getFacultyDepartment(req);
     const query = facultyDepartment ? { department: facultyDepartment } : {};
     const students = await Student.find(query).populate('user', studentUserProjection);
     res.json(students);
@@ -147,7 +148,8 @@ const deleteStudent = async (req, res) => {
 const getStudentsByDepartment = async (req, res) => {
   try {
     const { department } = req.params;
-    const facultyDepartment = await getFacultyDepartment(req);
+    const attendanceScope = String(req.query?.scope || '').toLowerCase() === 'attendance';
+    const facultyDepartment = attendanceScope ? null : await getFacultyDepartment(req);
     if (facultyDepartment && facultyDepartment !== department) {
       return res.status(403).json({ message: 'You can access only your department students' });
     }

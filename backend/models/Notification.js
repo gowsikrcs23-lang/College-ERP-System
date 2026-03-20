@@ -19,6 +19,14 @@ const notificationSchema = new mongoose.Schema({
     enum: ['all', 'students', 'faculty', 'admission', 'accountant', 'department'],
     required: true
   },
+  targetFaculty: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Faculty'
+  },
+  targetStudent: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Student'
+  },
   department: {
     type: String
   },
@@ -43,7 +51,9 @@ const notificationSchema = new mongoose.Schema({
     { isActive: 1, targetAudience: 1 },
     { isActive: 1, createdAt: -1 },
     { createdBy: 1, isActive: 1 },
-    { targetAudience: 1, department: 1, isActive: 1 }
+    { targetAudience: 1, department: 1, isActive: 1 },
+    { targetAudience: 1, targetFaculty: 1, isActive: 1 },
+    { targetAudience: 1, targetStudent: 1, isActive: 1 }
   ]
 });
 

@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Plus, Bell, Send, Trash2, Users, GraduationCap } from 'lucide-react';
-import { notificationsAPI } from '../utils/api';
+import { notificationsAPI, studentsAPI, facultyAPI } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 
 const Notifications = () => {
   const { user } = useAuth();
-  const isFacultyScopedRole = user?.role === 'faculty' || user?.role === 'hod';
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -21,11 +20,60 @@ const Notifications = () => {
     semester: '',
     expiryDate: ''
   });
+  const [students, setStudents] = useState([]);
+  const [studentsLoading, setStudentsLoading] = useState(false);
+  const [studentSearch, setStudentSearch] = useState('');
+  const [selectedStudents, setSelectedStudents] = useState([]);
+  const [faculty, setFaculty] = useState([]);
+  const [facultyLoading, setFacultyLoading] = useState(false);
+  const [facultySearch, setFacultySearch] = useState('');
+  const [selectedFaculty, setSelectedFaculty] = useState([]);
+  const [selectedDepartments, setSelectedDepartments] = useState([]);
+  const [selectedAudiences, setSelectedAudiences] = useState([]);
+  const titleSuggestions = [
+    'Important Announcement',
+    'Exam Schedule Update',
+    'Fee Payment Reminder',
+    'Attendance Alert',
+    'Campus Event Notice',
+    'Class Rescheduled',
+    'Meeting Invitation',
+    'Results Published',
+    'Holiday Circular',
+    'Deadline Reminder'
+  ];
+  const messageSuggestions = [
+    'Please note the updated schedule and plan accordingly.',
+    'This is a friendly reminder to complete the pending requirement before the deadline.',
+    'Attendance will be reviewed this week. Ensure you meet the minimum requirement.',
+    'Results have been published. Check the portal for details.',
+    'A meeting has been scheduled. Your presence is required.',
+    'Fee payment is due soon. Kindly complete payment at the earliest.',
+    'Classes have been rescheduled. Refer to the updated timetable.',
+    'Campus will remain closed due to a holiday. Stay tuned for updates.',
+    'An important notice has been issued. Please read carefully.',
+    'Students are requested to submit the required documents.'
+  ];
+  const titleMessageMap = {
+    'Important Announcement': 'An important notice has been issued. Please read carefully.',
+    'Exam Schedule Update': 'Please note the updated schedule and plan accordingly.',
+    'Fee Payment Reminder': 'Fee payment is due soon. Kindly complete payment at the earliest.',
+    'Attendance Alert': 'Attendance will be reviewed this week. Ensure you meet the minimum requirement.',
+    'Campus Event Notice': 'A campus event has been scheduled. Participation details will be shared soon.',
+    'Class Rescheduled': 'Classes have been rescheduled. Refer to the updated timetable.',
+    'Meeting Invitation': 'A meeting has been scheduled. Your presence is required.',
+    'Results Published': 'Results have been published. Check the portal for details.',
+    'Holiday Circular': 'Campus will remain closed due to a holiday. Stay tuned for updates.',
+    'Deadline Reminder': 'This is a friendly reminder to complete the pending requirement before the deadline.'
+  };
+  const departmentOptions = ['Computer Science', 'Electronics', 'Mechanical', 'Civil'];
 
   const getSeenNotificationStorageKey = () => {
     const identity = user?._id || user?.email || 'anonymous';
     return `dashboard-seen-notification-${identity}`;
   };
+
+  const [seenNotificationId, setSeenNotificationId] = useState(null);
 
   // Notification types based on role
   const notificationTypes = {
@@ -47,9 +95,9 @@ const Notifications = () => {
     hod: ['all', 'students', 'faculty', 'department']
   };
 
-  // Check if user can create notification
+  // Only management can create notifications
   const canCreateNotification = () => {
-    return user?.role && user.role !== 'student';
+    return user?.role === 'management';
   };
 
   // Get allowed notification types for current user
@@ -67,35 +115,72 @@ const Notifications = () => {
   }, []);
 
   useEffect(() => {
-    if (!showModal) return;
+    if (!showModal || formData.targetAudience !== 'students' || students.length > 0) return;
+    const fetchStudents = async () => {
+      try {
+        setStudentsLoading(true);
+        const response = await studentsAPI.getAll();
+        setStudents(response.data || []);
+      } catch (error) {
+        toast.error('Failed to load students');
+      } finally {
+        setStudentsLoading(false);
+      }
+    };
+    fetchStudents();
+  }, [showModal, formData.targetAudience, students.length]);
 
-    const department = isFacultyScopedRole ? (user?.profile?.department || '') : '';
-    setFormData((current) => {
-      const shouldUseOwnDepartment =
-        current.targetAudience === 'students' || current.targetAudience === 'department';
+  useEffect(() => {
+    if (!showModal || formData.targetAudience !== 'faculty' || faculty.length > 0) return;
+    const fetchFaculty = async () => {
+      try {
+        setFacultyLoading(true);
+        const response = await facultyAPI.getAll();
+        setFaculty(response.data || []);
+      } catch (error) {
+        toast.error('Failed to load faculty');
+      } finally {
+        setFacultyLoading(false);
+      }
+    };
+    fetchFaculty();
+  }, [showModal, formData.targetAudience, faculty.length]);
 
-      return {
-        ...current,
-        department: shouldUseOwnDepartment ? department : ''
-      };
-    });
-  }, [showModal, isFacultyScopedRole, user?.profile?.department]);
+  useEffect(() => {
+    const storedId = localStorage.getItem(getSeenNotificationStorageKey());
+    setSeenNotificationId(storedId);
+  }, [user?._id, user?.email]);
 
   const fetchNotifications = async (filterParams = {}) => {
     try {
       const response = await notificationsAPI.getAll(filterParams);
       // Handle both array and paginated response
       const fetchedNotifications = response.data.notifications || response.data;
-      setNotifications(fetchedNotifications);
-
-      if ((!filterParams.type && !filterParams.targetAudience) && fetchedNotifications.length > 0) {
-        localStorage.setItem(getSeenNotificationStorageKey(), fetchedNotifications[0]._id);
-      }
+      const uniqueNotifications = Array.isArray(fetchedNotifications)
+        ? Array.from(new Map(fetchedNotifications.map((n) => [n?._id, n])).values())
+        : [];
+      setNotifications(uniqueNotifications);
     } catch (error) {
       toast.error('Failed to fetch notifications');
     } finally {
       setLoading(false);
     }
+  };
+
+  const markAllAsSeen = () => {
+    if (notifications.length === 0) return;
+    const latestId = notifications[0]._id;
+    localStorage.setItem(getSeenNotificationStorageKey(), latestId);
+    setSeenNotificationId(latestId);
+    toast.success('Marked all as seen');
+  };
+
+  const isNotificationNew = (notificationId) => {
+    if (!seenNotificationId) return true;
+    const latestIndex = notifications.findIndex((n) => n._id === seenNotificationId);
+    const currentIndex = notifications.findIndex((n) => n._id === notificationId);
+    if (latestIndex === -1 || currentIndex === -1) return true;
+    return currentIndex <= latestIndex;
   };
 
   const handleFilterChange = (key, value) => {
@@ -107,7 +192,78 @@ const Notifications = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await notificationsAPI.create(formData);
+      const basePayload = { ...formData };
+      let audiencesToSend = selectedAudiences.length > 0
+        ? selectedAudiences
+        : [formData.targetAudience];
+      if (audiencesToSend.includes('all')) {
+        audiencesToSend = ['all'];
+      }
+
+      const payloads = audiencesToSend.flatMap((audience) => {
+        const audiencePayload = { ...basePayload, targetAudience: audience };
+
+        if (audience === 'all') {
+          return [{
+            ...audiencePayload,
+            department: '',
+            semester: '',
+            targetStudent: '',
+            targetFaculty: ''
+          }];
+        }
+
+        if (audience === 'students') {
+          const payloadGroup = [];
+          if (selectedStudents.length > 0) {
+            payloadGroup.push(...selectedStudents.map((studentId) => ({
+              ...audiencePayload,
+              targetStudent: studentId,
+              department: '',
+              semester: ''
+            })));
+          }
+          if (selectedDepartments.length > 0) {
+            payloadGroup.push(...selectedDepartments.map((department) => ({
+              ...audiencePayload,
+              department
+            })));
+          }
+          return payloadGroup.length > 0 ? payloadGroup : [audiencePayload];
+        }
+
+        if (audience === 'faculty') {
+          const payloadGroup = [];
+          if (selectedFaculty.length > 0) {
+            payloadGroup.push(...selectedFaculty.map((facultyId) => ({
+              ...audiencePayload,
+              targetFaculty: facultyId,
+              department: ''
+            })));
+          }
+          if (selectedDepartments.length > 0) {
+            payloadGroup.push(...selectedDepartments.map((department) => ({
+              ...audiencePayload,
+              department
+            })));
+          }
+          return payloadGroup.length > 0 ? payloadGroup : [audiencePayload];
+        }
+
+        if (audience === 'department') {
+          if (selectedDepartments.length > 0) {
+            return selectedDepartments.map((department) => ({
+              ...audiencePayload,
+              department
+            }));
+          }
+          return [audiencePayload];
+        }
+
+        return [audiencePayload];
+      });
+
+      await Promise.all(payloads.map((payload) => notificationsAPI.create(payload)));
       toast.success('Notification sent successfully');
       fetchNotifications(filters);
       resetForm();
@@ -163,6 +319,12 @@ const Notifications = () => {
       semester: '',
       expiryDate: ''
     });
+    setSelectedStudents([]);
+    setSelectedFaculty([]);
+    setSelectedDepartments([]);
+    setSelectedAudiences([]);
+    setStudentSearch('');
+    setFacultySearch('');
   };
 
   const getTypeColor = (type) => {
@@ -196,11 +358,11 @@ const Notifications = () => {
   };
 
   const canDeleteNotification = () => {
-    return user?.role && user.role !== 'student';
+    return user?.role === 'management';
   };
 
   const canDeleteAll = () => {
-    return user?.role && user.role !== 'student';
+    return user?.role === 'management';
   };
 
   if (loading) {
@@ -216,6 +378,12 @@ const Notifications = () => {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Notifications</h1>
         <div className="flex flex-col gap-2 sm:flex-row">
+          {notifications.length > 0 && (
+            <button onClick={markAllAsSeen} className="btn-secondary flex w-full items-center justify-center gap-2 sm:w-auto">
+              <Bell className="h-4 w-4" />
+              Mark All Seen
+            </button>
+          )}
           {canDeleteAll() && notifications.length > 0 && (
             <button onClick={handleDeleteAll} className="btn-danger flex w-full items-center justify-center gap-2 sm:w-auto">
               <Trash2 className="h-4 w-4" />
@@ -262,6 +430,14 @@ const Notifications = () => {
             <option value="accountant">Accountant</option>
             <option value="department">Department</option>
           </select>
+          {(user?.role === 'management' || user?.role === 'admin') && (
+            <select className="input-field min-w-0" value={filters.department} onChange={(e) => handleFilterChange('department', e.target.value)}>
+              <option value="">All Departments</option>
+              {departmentOptions.map((department) => (
+                <option key={department} value={department}>{department}</option>
+              ))}
+            </select>
+          )}
         </div>
       </div>
 
@@ -274,6 +450,11 @@ const Notifications = () => {
                 <div className="min-w-0 flex-1">
                   <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
                     <h3 className="break-words text-lg font-medium text-gray-900">{notification.title}</h3>
+                    {isNotificationNew(notification._id) && (
+                      <span className="inline-flex w-fit max-w-full break-words rounded-full bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700">
+                        New
+                      </span>
+                    )}
                     <span className={`inline-flex w-fit max-w-full break-words px-2 py-1 text-xs font-semibold rounded-full ${getTypeColor(notification.type)}`}>
                       {notification.type}
                     </span>
@@ -336,9 +517,22 @@ const Notifications = () => {
                 placeholder="Notification Title"
                 className="input-field"
                 value={formData.title}
-                onChange={(e) => setFormData({...formData, title: e.target.value})}
+                onChange={(e) => {
+                  const nextTitle = e.target.value;
+                  setFormData({
+                    ...formData,
+                    title: nextTitle,
+                    message: titleMessageMap[nextTitle] || formData.message
+                  });
+                }}
                 required
+                list="notification-title-suggestions"
               />
+              <datalist id="notification-title-suggestions">
+                {titleSuggestions.map((suggestion) => (
+                  <option key={suggestion} value={suggestion} />
+                ))}
+              </datalist>
 
               <textarea
                 placeholder="Message"
@@ -347,6 +541,19 @@ const Notifications = () => {
                 onChange={(e) => setFormData({...formData, message: e.target.value})}
                 required
               />
+              <select
+                className="input-field"
+                value=""
+                onChange={(e) => {
+                  if (!e.target.value) return;
+                  setFormData({ ...formData, message: e.target.value });
+                }}
+              >
+                <option value="">Message ideas (select to fill)</option>
+                {messageSuggestions.map((suggestion) => (
+                  <option key={suggestion} value={suggestion}>{suggestion}</option>
+                ))}
+              </select>
 
               <select
                 className="input-field"
@@ -365,15 +572,16 @@ const Notifications = () => {
                 value={formData.targetAudience}
                 onChange={(e) => {
                   const nextAudience = e.target.value;
-                  const nextDepartment =
-                    isFacultyScopedRole && (nextAudience === 'students' || nextAudience === 'department')
-                      ? (user?.profile?.department || '')
-                      : '';
-
+                  setSelectedStudents([]);
+                  setSelectedFaculty([]);
+                  setSelectedDepartments([]);
+                  setSelectedAudiences([]);
+                  setStudentSearch('');
+                  setFacultySearch('');
                   setFormData({
                     ...formData,
                     targetAudience: nextAudience,
-                    department: nextDepartment,
+                    department: '',
                     semester: nextAudience === 'students' ? formData.semester : ''
                   });
                 }}
@@ -384,30 +592,261 @@ const Notifications = () => {
                   <option key={audience} value={audience}>{audience.charAt(0).toUpperCase() + audience.slice(1)}</option>
                 ))}
               </select>
+              <div className="space-y-2 rounded-lg border border-gray-200 p-3">
+                <p className="text-sm font-medium text-gray-700">Send to multiple audiences</p>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {targetAudiences[user?.role]?.map((audience) => {
+                    const isSelected = selectedAudiences.includes(audience);
+                    return (
+                      <label key={audience} className="flex items-center gap-2 text-sm text-gray-600">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 accent-primary-600"
+                          checked={isSelected}
+                          onChange={() => {
+                            setSelectedAudiences((current) =>
+                              current.includes(audience)
+                                ? current.filter((item) => item !== audience)
+                                : [...current, audience]
+                            );
+                          }}
+                        />
+                        {audience.charAt(0).toUpperCase() + audience.slice(1)}
+                      </label>
+                    );
+                  })}
+                </div>
+                {selectedAudiences.length > 0 && (
+                  <p className="text-xs text-gray-500">Multiple audiences selected. The single audience dropdown will be ignored.</p>
+                )}
+              </div>
+              <label className="flex items-center gap-2 text-sm text-gray-600">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-primary-600"
+                  checked={selectedAudiences.length > 0
+                    ? selectedAudiences.includes('all')
+                    : formData.targetAudience === 'all'}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setSelectedStudents([]);
+                    setSelectedFaculty([]);
+                    setSelectedDepartments([]);
+                    setStudentSearch('');
+                    setFacultySearch('');
+                    if (selectedAudiences.length > 0) {
+                      setSelectedAudiences((current) =>
+                        checked
+                          ? Array.from(new Set([...current, 'all']))
+                          : current.filter((item) => item !== 'all')
+                      );
+                    } else {
+                      setFormData({
+                        ...formData,
+                        targetAudience: checked ? 'all' : '',
+                        department: '',
+                        semester: ''
+                      });
+                    }
+                  }}
+                />
+                Send to all
+              </label>
 
               {(formData.targetAudience === 'students' || formData.targetAudience === 'department') && (
-                <select
-                  className="input-field"
-                  value={formData.department}
-                  onChange={(e) => setFormData({...formData, department: e.target.value})}
-                  required
-                  disabled={isFacultyScopedRole}
-                >
-                  <option value="">Select Department</option>
-                  <option value="Computer Science">Computer Science</option>
-                  <option value="Electronics">Electronics</option>
-                  <option value="Mechanical">Mechanical</option>
-                  <option value="Civil">Civil</option>
-                </select>
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-gray-700">Departments (multi-select)</p>
+                  <label className="flex items-center gap-2 text-sm text-gray-600">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-primary-600"
+                      checked={selectedDepartments.length === departmentOptions.length && departmentOptions.length > 0}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedDepartments([...departmentOptions]);
+                        } else {
+                          setSelectedDepartments([]);
+                        }
+                      }}
+                    />
+                    Select all departments
+                  </label>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {departmentOptions.map((department) => {
+                      const isSelected = selectedDepartments.includes(department);
+                      return (
+                        <label
+                          key={department}
+                          className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                            isSelected ? 'border-primary-600 bg-primary-50' : 'border-gray-200'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 accent-primary-600"
+                            checked={isSelected}
+                            onChange={() => {
+                              setSelectedDepartments((current) =>
+                                current.includes(department)
+                                  ? current.filter((item) => item !== department)
+                                  : [...current, department]
+                              );
+                            }}
+                          />
+                          {department}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
               )}
 
-              {isFacultyScopedRole && (formData.targetAudience === 'students' || formData.targetAudience === 'department') && (
-                <p className="text-sm text-gray-500">
-                  Notifications will be sent to your department: {user?.profile?.department || 'Not assigned'}
-                </p>
+              {formData.targetAudience === 'students' && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-gray-700">Select Students (multi-select)</p>
+                  <input
+                    type="text"
+                    className="input-field"
+                    placeholder="Search by name, ID, department, semester"
+                    value={studentSearch}
+                    onChange={(e) => setStudentSearch(e.target.value)}
+                  />
+                  <label className="flex items-center gap-2 text-sm text-gray-600">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-primary-600"
+                      checked={students.length > 0 && selectedStudents.length === students.length}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedStudents(students.map((student) => student._id));
+                        } else {
+                          setSelectedStudents([]);
+                        }
+                      }}
+                    />
+                    Select all students
+                  </label>
+                  <div className="max-h-48 space-y-2 overflow-y-auto rounded-lg border border-gray-200 p-3">
+                    {studentsLoading && (
+                      <p className="text-sm text-gray-500">Loading students...</p>
+                    )}
+                    {!studentsLoading && students.length === 0 && (
+                      <p className="text-sm text-gray-500">No students found.</p>
+                    )}
+                    {!studentsLoading && students.length > 0 && (
+                      students
+                        .filter((student) => {
+                          const query = studentSearch.trim().toLowerCase();
+                          if (!query) return true;
+                          const name = `${student.firstName} ${student.lastName}`.toLowerCase();
+                          const id = String(student.studentId || '').toLowerCase();
+                          const dept = String(student.department || '').toLowerCase();
+                          const sem = String(student.semester || '').toLowerCase();
+                          return name.includes(query) || id.includes(query) || dept.includes(query) || sem.includes(query);
+                        })
+                        .map((student) => {
+                          const isSelected = selectedStudents.includes(student._id);
+                          return (
+                            <label key={student._id} className="flex items-center gap-2 text-sm text-gray-700">
+                              <input
+                                type="checkbox"
+                                className="h-4 w-4 accent-primary-600"
+                                checked={isSelected}
+                                onChange={() => {
+                                  setSelectedStudents((current) =>
+                                    current.includes(student._id)
+                                      ? current.filter((item) => item !== student._id)
+                                      : [...current, student._id]
+                                  );
+                                }}
+                              />
+                              <span className="flex-1">
+                                {student.firstName} {student.lastName} ({student.studentId}) - {student.department} Sem {student.semester}
+                              </span>
+                            </label>
+                          );
+                        })
+                    )}
+                  </div>
+                  {(selectedStudents.length > 0 || selectedDepartments.length > 0) && (
+                    <p className="text-xs text-gray-500">You can send to specific students and departments together.</p>
+                  )}
+                </div>
               )}
 
-              {formData.targetAudience === 'students' && formData.department && (
+              {formData.targetAudience === 'faculty' && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-gray-700">Select Faculty (multi-select)</p>
+                  <input
+                    type="text"
+                    className="input-field"
+                    placeholder="Search by name, ID, department"
+                    value={facultySearch}
+                    onChange={(e) => setFacultySearch(e.target.value)}
+                  />
+                  <label className="flex items-center gap-2 text-sm text-gray-600">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-primary-600"
+                      checked={faculty.length > 0 && selectedFaculty.length === faculty.length}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedFaculty(faculty.map((member) => member._id));
+                        } else {
+                          setSelectedFaculty([]);
+                        }
+                      }}
+                    />
+                    Select all faculty
+                  </label>
+                  <div className="max-h-48 space-y-2 overflow-y-auto rounded-lg border border-gray-200 p-3">
+                    {facultyLoading && (
+                      <p className="text-sm text-gray-500">Loading faculty...</p>
+                    )}
+                    {!facultyLoading && faculty.length === 0 && (
+                      <p className="text-sm text-gray-500">No faculty found.</p>
+                    )}
+                    {!facultyLoading && faculty.length > 0 && (
+                      faculty
+                        .filter((member) => {
+                          const query = facultySearch.trim().toLowerCase();
+                          if (!query) return true;
+                          const name = `${member.firstName} ${member.lastName}`.toLowerCase();
+                          const id = String(member.facultyId || '').toLowerCase();
+                          const dept = String(member.department || '').toLowerCase();
+                          return name.includes(query) || id.includes(query) || dept.includes(query);
+                        })
+                        .map((member) => {
+                          const isSelected = selectedFaculty.includes(member._id);
+                          return (
+                            <label key={member._id} className="flex items-center gap-2 text-sm text-gray-700">
+                              <input
+                                type="checkbox"
+                                className="h-4 w-4 accent-primary-600"
+                                checked={isSelected}
+                                onChange={() => {
+                                  setSelectedFaculty((current) =>
+                                    current.includes(member._id)
+                                      ? current.filter((item) => item !== member._id)
+                                      : [...current, member._id]
+                                  );
+                                }}
+                              />
+                              <span className="flex-1">
+                                {member.firstName} {member.lastName} ({member.facultyId}) - {member.department}
+                              </span>
+                            </label>
+                          );
+                        })
+                    )}
+                  </div>
+                  {(selectedFaculty.length > 0 || selectedDepartments.length > 0) && (
+                    <p className="text-xs text-gray-500">You can send to specific faculty and departments together.</p>
+                  )}
+                </div>
+              )}
+
+              {formData.targetAudience === 'students' && selectedStudents.length === 0 && (
                 <select
                   className="input-field"
                   value={formData.semester}
@@ -431,7 +870,10 @@ const Notifications = () => {
               <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end sm:space-x-0">
                 <button
                   type="button"
-                  onClick={() => setShowModal(false)}
+                  onClick={() => {
+                    resetForm();
+                    setShowModal(false);
+                  }}
                   className="btn-secondary w-full sm:w-auto"
                 >
                   Cancel

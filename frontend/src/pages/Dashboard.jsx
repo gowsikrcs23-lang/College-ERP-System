@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Users, GraduationCap, Calendar, FileText, DollarSign, Home, Bell, ChevronRight } from 'lucide-react';
-import { studentsAPI, facultyAPI, notificationsAPI } from '../utils/api';
+import { Users, GraduationCap, Calendar, FileText, DollarSign, Home, Bell, ChevronRight, User, ShieldAlert } from 'lucide-react';
+import { studentsAPI, facultyAPI, notificationsAPI, classFacultyAPI } from '../utils/api';
 import AttendanceStats from '../components/AttendanceStats';
 
 const Dashboard = () => {
@@ -14,6 +14,8 @@ const Dashboard = () => {
   const [latestNotification, setLatestNotification] = useState(null);
   const [isLatestNotificationSeen, setIsLatestNotificationSeen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [studentProfile, setStudentProfile] = useState(null);
+  const [studentClassFaculty, setStudentClassFaculty] = useState(null);
 
   const getSeenNotificationStorageKey = () => {
     const identity = user?._id || user?.email || 'anonymous';
@@ -39,6 +41,40 @@ const Dashboard = () => {
           students: studentsRes.data.length,
           faculty: facultyRes.data.length
         });
+
+        const notifications = latestNotificationRes.data?.notifications || latestNotificationRes.data || [];
+        const newestNotification = notifications[0] || null;
+        setLatestNotification(newestNotification);
+        setIsLatestNotificationSeen(
+          newestNotification ? localStorage.getItem(getSeenNotificationStorageKey()) === newestNotification._id : false
+        );
+        return;
+      }
+
+      if (user?.role === 'student') {
+        const studentId = user?.profile?._id || user?.profile;
+        const [studentRes, latestNotificationRes] = await Promise.all([
+          studentId ? studentsAPI.getById(studentId) : Promise.resolve({ data: null }),
+          latestNotificationPromise
+        ]);
+
+        const studentData = studentRes?.data || null;
+        setStudentProfile(studentData);
+
+        if (studentData?.department && studentData?.semester) {
+          try {
+            const classFacultyRes = await classFacultyAPI.getAll({
+              department: studentData.department,
+              semester: studentData.semester
+            });
+            const assignment = Array.isArray(classFacultyRes.data) ? classFacultyRes.data[0] : null;
+            setStudentClassFaculty(assignment?.faculty || null);
+          } catch (err) {
+            setStudentClassFaculty(null);
+          }
+        } else {
+          setStudentClassFaculty(null);
+        }
 
         const notifications = latestNotificationRes.data?.notifications || latestNotificationRes.data || [];
         const newestNotification = notifications[0] || null;
@@ -101,7 +137,9 @@ const Dashboard = () => {
       return [
         { name: 'View Attendance', href: '/attendance', icon: Calendar },
         { name: 'Check Results', href: '/results', icon: FileText },
-        { name: 'Fee Status', href: '/fees', icon: DollarSign }
+        { name: 'Fee Status', href: '/fees', icon: DollarSign },
+        { name: 'My Profile', href: '/profile', icon: User },
+        { name: 'Mail Block', href: '/student-mail-block', icon: ShieldAlert }
       ];
     }
 
@@ -192,6 +230,71 @@ const Dashboard = () => {
               View all
               <ChevronRight className="h-4 w-4" />
             </Link>
+          </div>
+        </div>
+      )}
+
+      {user?.role === 'student' && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <div className="lg:col-span-2 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Student Snapshot</p>
+                <h2 className="text-lg font-bold text-slate-900">Your current academic view</h2>
+              </div>
+              <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                {studentProfile?.department || 'Department N/A'}
+              </span>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+                <p className="text-xs uppercase tracking-[0.2em] text-blue-600 font-semibold">Student ID</p>
+                <p className="mt-2 text-lg font-bold text-blue-950">{studentProfile?.studentId || 'N/A'}</p>
+                <p className="text-xs text-blue-700">Registration: {studentProfile?.bio?.registrationNumber || 'N/A'}</p>
+              </div>
+              <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-4">
+                <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 font-semibold">Semester</p>
+                <p className="mt-2 text-lg font-bold text-indigo-950">
+                  {studentProfile?.semester ? `Semester ${studentProfile.semester}` : 'N/A'}
+                </p>
+                <p className="text-xs text-indigo-700">Batch: {studentProfile?.batch || 'N/A'}</p>
+              </div>
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
+                <p className="text-xs uppercase tracking-[0.2em] text-emerald-600 font-semibold">Class Faculty</p>
+                <p className="mt-2 text-lg font-bold text-emerald-950">
+                  {studentClassFaculty
+                    ? `${studentClassFaculty.firstName} ${studentClassFaculty.lastName}`
+                    : 'Not assigned'}
+                </p>
+                <p className="text-xs text-emerald-700">
+                  {studentClassFaculty?.facultyId ? `ID: ${studentClassFaculty.facultyId}` : 'Faculty ID N/A'}
+                </p>
+              </div>
+              <div className="rounded-xl border border-rose-100 bg-rose-50 p-4">
+                <p className="text-xs uppercase tracking-[0.2em] text-rose-600 font-semibold">Mail Blocks</p>
+                <p className="mt-2 text-lg font-bold text-rose-950">
+                  {studentProfile?.user?.emailBlockCount || 0}
+                </p>
+                <p className="text-xs text-rose-700">
+                  Status: {studentProfile?.user?.isEmailBlocked ? 'Blocked' : 'Active'}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Today</p>
+            <h3 className="mt-1 text-lg font-bold text-slate-900">Your next steps</h3>
+            <div className="mt-4 space-y-3 text-sm text-slate-600">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                Review your attendance and submit any pending requests.
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                Check results and download reports if available.
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                Verify fee status to avoid late notifications.
+              </div>
+            </div>
           </div>
         </div>
       )}

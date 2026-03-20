@@ -135,7 +135,7 @@ exports.generateReport = async (req, res) => {
       }).sort({ date: 1 });
 
       const totalClasses = attendanceRecords.length;
-      const attendedClasses = attendanceRecords.filter(a => a.status === 'present').length;
+      const attendedClasses = attendanceRecords.filter(a => ['present', 'od', 'late'].includes(a.status)).length;
       const percentage = totalClasses > 0 ? ((attendedClasses / totalClasses) * 100).toFixed(2) : 0;
 
       reportData.attendanceData = {

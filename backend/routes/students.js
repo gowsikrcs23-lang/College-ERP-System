@@ -28,8 +28,8 @@ const studentValidation = [
 ];
 
 // Routes
-router.get('/', auth, authorize('admin', 'management', 'faculty', 'accountant', 'hod'), getAllStudents);
-router.get('/department/:department', auth, authorize('admin', 'management', 'faculty', 'accountant', 'hod'), getStudentsByDepartment);
+router.get('/', auth, authorize('admin', 'management', 'faculty', 'accountant', 'hod', 'admission'), getAllStudents);
+router.get('/department/:department', auth, authorize('admin', 'management', 'faculty', 'accountant', 'hod', 'admission'), getStudentsByDepartment);
 router.get('/:id', auth, getStudentById);
 router.post('/', auth, authorize('admin', 'management', 'hod', 'faculty'), studentValidation, validate, createStudent);
 router.put('/:id', auth, authorize('admin', 'management', 'hod', 'faculty'), updateStudent);

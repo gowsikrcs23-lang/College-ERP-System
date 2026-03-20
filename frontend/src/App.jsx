@@ -34,7 +34,7 @@ function AppContent() {
 
   return (
     <div className="App app-shell">
-      <Toaster position="top-right" />
+      <Toaster position="top-right" toastOptions={{ duration: 2000 }} />
       <div className="app-shell__content">
         <Routes>
           <Route path="/login" element={<Login />} />
@@ -179,7 +179,7 @@ function AppContent() {
         </Routes>
       </div>
       {!hideFooter && (
-        <footer className="global-credit-bar" aria-label="Credits">
+        <footer className="global-credit-bar global-credit-bar--offset" aria-label="Credits">
           <p className="global-credit-bar__copy">
             College ERP System
             <span className="global-credit-bar__separator" aria-hidden="true">|</span>
@@ -235,5 +235,4 @@ function App() {
     </AuthProvider>
   );
 }
-
 export default App;

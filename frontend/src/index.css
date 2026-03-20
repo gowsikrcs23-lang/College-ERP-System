@@ -75,6 +75,15 @@
       inset 0 1px 0 rgba(255, 255, 255, 0.9);
   }
 
+  select.input-field {
+    appearance: none;
+    padding-right: 2.75rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 20 20' fill='none'%3E%3Cpath d='M6 8l4 4 4-4' stroke='%2364758B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.95rem center;
+    background-size: 0.9rem;
+  }
+
   .card {
     @apply rounded-[1.4rem] p-6 transition-all duration-200;
     background: var(--app-panel);
@@ -175,6 +184,13 @@
     border-top: 1px solid rgba(226, 232, 240, 0.9);
     background: rgba(255, 255, 255, 0.72);
     backdrop-filter: blur(12px);
+  }
+
+  @media (min-width: 1024px) {
+    .global-credit-bar--offset {
+      margin-left: 16rem;
+      width: calc(100% - 16rem);
+    }
   }
 
   .shell-sidebar {

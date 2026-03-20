@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { DollarSign, Plus, Search, Eye, Trash2 } from 'lucide-react';
+import { DollarSign, Plus, Search, Eye, Trash2, Send } from 'lucide-react';
 
 const Fees = () => {
   const { user } = useAuth();
@@ -27,7 +27,9 @@ const AccountantFeesView = () => {
   const [fees, setFees] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showNoticeModal, setShowNoticeModal] = useState(false);
   const [selectedFee, setSelectedFee] = useState(null);
+  const [noticeTargetFee, setNoticeTargetFee] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedFee, setExpandedFee] = useState(null);
   const [formData, setFormData] = useState({
@@ -44,6 +46,12 @@ const AccountantFeesView = () => {
     amount: '',
     paymentMethod: 'cash',
     transactionId: ''
+  });
+  const [noticeData, setNoticeData] = useState({
+    audience: 'all',
+    studentId: '',
+    title: '',
+    message: ''
   });
 
   useEffect(() => {
@@ -95,6 +103,57 @@ const AccountantFeesView = () => {
     }
   };
 
+  const openNoticeModal = (fee = null) => {
+    const isSpecific = Boolean(fee?.student?._id);
+    const studentName = fee?.student ? `${fee.student.firstName} ${fee.student.lastName}`.trim() : 'Student';
+    const dueAmount = fee?.dueAmount ?? '';
+    const dueDate = fee?.dueDate ? new Date(fee.dueDate).toLocaleDateString() : '';
+    const title = isSpecific
+      ? `Fee Payment Reminder - ${studentName} (${fee?.student?.studentId || 'ID'})`
+      : 'Fee Payment Reminder';
+    const message = isSpecific
+      ? `Hello ${studentName},\n\nThis is a reminder about your fee payment.\n\nDue Amount: ₹${dueAmount}\nDue Date: ${dueDate}\nSemester: ${fee?.semester || 'N/A'}\nAcademic Year: ${fee?.academicYear || 'N/A'}\n\nPlease complete the payment at the earliest.\n\nAccounts Office`
+      : 'Hello Students,\n\nThis is a reminder to clear your fee dues on time. Please check your fee status and complete any pending payments.\n\nAccounts Office';
+
+    setNoticeTargetFee(fee);
+    setNoticeData({
+      audience: isSpecific ? 'specific' : 'all',
+      studentId: fee?.student?._id || '',
+      title,
+      message
+    });
+    setShowNoticeModal(true);
+  };
+
+  const handleSendNotice = async (e) => {
+    e.preventDefault();
+    try {
+      const payload = {
+        title: noticeData.title,
+        message: noticeData.message,
+        type: 'fee',
+        targetAudience: 'students'
+      };
+
+      if (noticeData.audience === 'specific' && noticeData.studentId) {
+        payload.targetStudent = noticeData.studentId;
+      }
+
+      await axios.post('/api/notifications', payload);
+      toast.success('Payment notice sent successfully');
+      setShowNoticeModal(false);
+      setNoticeTargetFee(null);
+      setNoticeData({
+        audience: 'all',
+        studentId: '',
+        title: '',
+        message: ''
+      });
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to send notice');
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       student: '',
@@ -118,10 +177,16 @@ const AccountantFeesView = () => {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Fee Management</h1>
-        <button onClick={() => setShowModal(true)} className="btn-primary flex items-center gap-2">
-          <Plus className="h-4 w-4" />
-          Create Fee Record
-        </button>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <button onClick={() => openNoticeModal()} className="btn-secondary flex items-center gap-2">
+            <Send className="h-4 w-4" />
+            Send Payment Notice
+          </button>
+          <button onClick={() => setShowModal(true)} className="btn-primary flex items-center gap-2">
+            <Plus className="h-4 w-4" />
+            Create Fee Record
+          </button>
+        </div>
       </div>
 
       <div className="relative">
@@ -177,6 +242,12 @@ const AccountantFeesView = () => {
                       className="text-primary-600 hover:text-primary-900 mr-3"
                     >
                       {expandedFee === fee._id ? 'Hide' : 'View'}
+                    </button>
+                    <button
+                      onClick={() => openNoticeModal(fee)}
+                      className="text-indigo-600 hover:text-indigo-900 mr-3"
+                    >
+                      Notify
                     </button>
                     {fee.status !== 'paid' && (
                       <button
@@ -299,6 +370,80 @@ const AccountantFeesView = () => {
               </div>
             </form>
           </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Notice Modal */}
+      {showNoticeModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="flex min-h-screen items-center justify-center p-4">
+            <div className="w-full max-w-lg rounded-md border bg-white p-5 shadow-lg">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Send Payment Notice</h3>
+              <form onSubmit={handleSendNotice} className="space-y-4">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <select
+                    className="input-field"
+                    value={noticeData.audience}
+                    onChange={(e) => {
+                      const nextAudience = e.target.value;
+                      setNoticeData((prev) => ({
+                        ...prev,
+                        audience: nextAudience,
+                        studentId: nextAudience === 'specific' ? prev.studentId : ''
+                      }));
+                    }}
+                  >
+                    <option value="all">All Students</option>
+                    <option value="specific">Specific Student</option>
+                  </select>
+                  <select
+                    className="input-field"
+                    value={noticeData.studentId}
+                    onChange={(e) => setNoticeData((prev) => ({ ...prev, studentId: e.target.value }))}
+                    disabled={noticeData.audience !== 'specific'}
+                    required={noticeData.audience === 'specific'}
+                  >
+                    <option value="">Select Student</option>
+                    {students.map((student) => (
+                      <option key={student._id} value={student._id}>
+                        {student.firstName} {student.lastName} ({student.studentId})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <input
+                  type="text"
+                  className="input-field"
+                  value={noticeData.title}
+                  onChange={(e) => setNoticeData((prev) => ({ ...prev, title: e.target.value }))}
+                  placeholder="Notice title"
+                  required
+                />
+                <textarea
+                  className="input-field h-36 resize-none"
+                  value={noticeData.message}
+                  onChange={(e) => setNoticeData((prev) => ({ ...prev, message: e.target.value }))}
+                  placeholder="Write the payment notice"
+                  required
+                />
+                <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowNoticeModal(false);
+                      setNoticeTargetFee(null);
+                    }}
+                    className="btn-secondary"
+                  >
+                    Cancel
+                  </button>
+                  <button type="submit" className="btn-primary">
+                    Send Notice
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}

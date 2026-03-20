@@ -48,7 +48,7 @@ const MailUnblock = () => {
       resultsRes.status === 'fulfilled' ? resultsRes.value.data : []
     );
 
-    const present = attendanceData.filter((a) => a.status === 'present' || a.status === 'P').length;
+    const present = attendanceData.filter((a) => ['present', 'p', 'od', 'late'].includes((a.status || '').toLowerCase())).length;
     const attendancePercentage = attendanceData.length > 0
       ? Math.round((present / attendanceData.length) * 100)
       : 0;
@@ -190,90 +190,160 @@ const MailUnblock = () => {
         />
       </div>
 
-      <div className="card">
-        <div className="space-y-3 p-4">
-          {visibleStudents.map((student) => (
-            <div key={student._id} className="border rounded-lg p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-              <div>
-                <p className="font-semibold text-gray-900">
-                  {student.firstName} {student.lastName} ({student.studentId})
-                </p>
-                <p className="text-sm text-gray-600">
-                  Reg No: {student.bio?.registrationNumber || 'N/A'} | Dept: {student.department}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Block Count: {student.user?.emailBlockCount || 0} | Faculty Approval: {student.user?.unblockApprovedByFaculty ? 'Approved' : 'Pending'}
-                </p>
-                <p className="text-xs text-red-600 mt-1">
-                  Current Reason: {student.bio?.mailBlockReason || student.user?.emailBlockReason || 'N/A'}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Faculty Approval By: {getAllBlockReasons(student)[0]?.facultyApprovedByName ? `${getAllBlockReasons(student)[0].facultyApprovedByName} (${getAllBlockReasons(student)[0].facultyApprovedByFacultyId || 'ID N/A'})` : 'Pending / N/A'}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Attendance: {studentMetrics[student._id]?.attendancePercentage ?? 0}% | Avg Marks: {studentMetrics[student._id]?.averageMarks ?? '0.0'}%
-                </p>
-                <div className="mt-2">
-                  <p className="text-xs font-medium text-gray-600">All Past Reasons:</p>
-                  {getAllBlockReasons(student).length > 0 ? (
-                    <div className="mt-1 space-y-1">
-                      {getAllBlockReasons(student).map((item, idx) => (
-                        <p key={item.id} className="text-xs text-gray-500">
-                          {idx + 1}. {item.text}{item.date ? ` (${item.date})` : ''}{item.facultyApprovedByName ? ` | Approved by ${item.facultyApprovedByName} (${item.facultyApprovedByFacultyId || 'ID N/A'})` : ''}
-                        </p>
-                      ))}
+      {isFaculty ? (
+        <div className="space-y-4">
+          <div className="card">
+            <div className="border-b px-4 py-3">
+              <h2 className="text-base font-semibold text-gray-800">Pending Faculty Approval</h2>
+            </div>
+            <div className="space-y-3 p-4">
+              {visibleStudents
+                .filter((student) => !student.user?.unblockApprovedByFaculty)
+                .map((student) => (
+                  <div key={student._id} className="border rounded-lg p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                    <div>
+                      <p className="font-semibold text-gray-900">
+                        {student.firstName} {student.lastName} ({student.studentId})
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        Reg No: {student.bio?.registrationNumber || 'N/A'} | Dept: {student.department}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Block Count: {student.user?.emailBlockCount || 0} | Faculty Approval: Pending
+                      </p>
+                      <p className="text-xs text-red-600 mt-1">
+                        Current Reason: {student.bio?.mailBlockReason || student.user?.emailBlockReason || 'N/A'}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Attendance: {studentMetrics[student._id]?.attendancePercentage ?? 0}% | Avg Marks: {studentMetrics[student._id]?.averageMarks ?? '0.0'}%
+                      </p>
                     </div>
-                  ) : (
-                    <p className="mt-1 text-xs text-gray-500">No past reasons</p>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={actionLoadingId === student._id}
+                        onClick={() => handleApprove(student._id)}
+                        className="px-3 py-1.5 text-sm rounded bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50"
+                      >
+                        Approve Unblock
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+              {visibleStudents.filter((student) => !student.user?.unblockApprovedByFaculty).length === 0 && (
+                <div className="text-center py-6 text-gray-500">
+                  No pending approvals.
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="border-b px-4 py-3">
+              <h2 className="text-base font-semibold text-gray-800">Faculty Approved</h2>
+            </div>
+            <div className="space-y-3 p-4">
+              {visibleStudents
+                .filter((student) => student.user?.unblockApprovedByFaculty)
+                .map((student) => (
+                  <div key={student._id} className="border rounded-lg p-4">
+                    <p className="font-semibold text-gray-900">
+                      {student.firstName} {student.lastName} ({student.studentId})
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      Reg No: {student.bio?.registrationNumber || 'N/A'} | Dept: {student.department}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Faculty Approval: Approved
+                    </p>
+                  </div>
+                ))}
+
+              {visibleStudents.filter((student) => student.user?.unblockApprovedByFaculty).length === 0 && (
+                <div className="text-center py-6 text-gray-500">
+                  No approved items yet.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="card">
+          <div className="space-y-3 p-4">
+            {visibleStudents.map((student) => (
+              <div key={student._id} className="border rounded-lg p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <div>
+                  <p className="font-semibold text-gray-900">
+                    {student.firstName} {student.lastName} ({student.studentId})
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    Reg No: {student.bio?.registrationNumber || 'N/A'} | Dept: {student.department}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Block Count: {student.user?.emailBlockCount || 0} | Faculty Approval: {student.user?.unblockApprovedByFaculty ? 'Approved' : 'Pending'}
+                  </p>
+                  <p className="text-xs text-red-600 mt-1">
+                    Current Reason: {student.bio?.mailBlockReason || student.user?.emailBlockReason || 'N/A'}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Faculty Approval By: {getAllBlockReasons(student)[0]?.facultyApprovedByName ? `${getAllBlockReasons(student)[0].facultyApprovedByName} (${getAllBlockReasons(student)[0].facultyApprovedByFacultyId || 'ID N/A'})` : 'Pending / N/A'}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Attendance: {studentMetrics[student._id]?.attendancePercentage ?? 0}% | Avg Marks: {studentMetrics[student._id]?.averageMarks ?? '0.0'}%
+                  </p>
+                  <div className="mt-2">
+                    <p className="text-xs font-medium text-gray-600">All Past Reasons:</p>
+                    {getAllBlockReasons(student).length > 0 ? (
+                      <div className="mt-1 space-y-1">
+                        {getAllBlockReasons(student).map((item, idx) => (
+                          <p key={item.id} className="text-xs text-gray-500">
+                            {idx + 1}. {item.text}{item.date ? ` (${item.date})` : ''}{item.facultyApprovedByName ? ` | Approved by ${item.facultyApprovedByName} (${item.facultyApprovedByFacultyId || 'ID N/A'})` : ''}
+                          </p>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-1 text-xs text-gray-500">No past reasons</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {isManagement && (
+                    <button
+                      type="button"
+                      disabled={actionLoadingId === student._id || (student.user?.emailBlockCount || 0) === 0}
+                      onClick={() => handleClearCount(student._id)}
+                      className="px-3 py-1.5 text-sm rounded bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-50"
+                    >
+                      Clear Count
+                    </button>
+                  )}
+
+                  {isManagement && (
+                    <button
+                      type="button"
+                      disabled={actionLoadingId === student._id || !student.user?.unblockApprovedByFaculty}
+                      onClick={() => handleUnblock(student._id)}
+                      className="px-3 py-1.5 text-sm rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+                      title={!student.user?.unblockApprovedByFaculty ? 'Faculty approval required' : ''}
+                    >
+                      Unblock Mail
+                    </button>
                   )}
                 </div>
               </div>
+            ))}
 
-              <div className="flex items-center gap-2">
-                {isFaculty && !student.user?.unblockApprovedByFaculty && (
-                  <button
-                    type="button"
-                    disabled={actionLoadingId === student._id}
-                    onClick={() => handleApprove(student._id)}
-                    className="px-3 py-1.5 text-sm rounded bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50"
-                  >
-                    Approve Unblock
-                  </button>
-                )}
-
-                {isManagement && (
-                  <button
-                    type="button"
-                    disabled={actionLoadingId === student._id || (student.user?.emailBlockCount || 0) === 0}
-                    onClick={() => handleClearCount(student._id)}
-                    className="px-3 py-1.5 text-sm rounded bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-50"
-                  >
-                    Clear Count
-                  </button>
-                )}
-
-                {isManagement && (
-                  <button
-                    type="button"
-                    disabled={actionLoadingId === student._id || !student.user?.unblockApprovedByFaculty}
-                    onClick={() => handleUnblock(student._id)}
-                    className="px-3 py-1.5 text-sm rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
-                    title={!student.user?.unblockApprovedByFaculty ? 'Faculty approval required' : ''}
-                  >
-                    Unblock Mail
-                  </button>
-                )}
+            {visibleStudents.length === 0 && (
+              <div className="text-center py-8 text-gray-500">
+                No blocked students found.
               </div>
-            </div>
-          ))}
-
-          {visibleStudents.length === 0 && (
-            <div className="text-center py-8 text-gray-500">
-              No blocked students found.
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

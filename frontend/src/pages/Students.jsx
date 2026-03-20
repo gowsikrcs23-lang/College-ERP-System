@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Search, TrendingUp, Clock, BookOpen, User, ShieldAlert, CheckCircle2, XCircle } from 'lucide-react';
-import { studentsAPI } from '../utils/api';
+import { Plus, Edit, Trash2, Search, TrendingUp, Clock, BookOpen, User, ShieldAlert, CheckCircle2, XCircle, GraduationCap, Send } from 'lucide-react';
+import { studentsAPI, classFacultyAPI, notificationsAPI } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -10,10 +10,21 @@ const Students = () => {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterDepartment, setFilterDepartment] = useState('');
+  const [filterSemester, setFilterSemester] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [studentDetails, setStudentDetails] = useState({});
+  const [classFacultyByStudent, setClassFacultyByStudent] = useState({});
+  const [messageOpenId, setMessageOpenId] = useState('');
+  const [messageSending, setMessageSending] = useState(false);
+  const [messageTarget, setMessageTarget] = useState(null);
+  const [messageDraft, setMessageDraft] = useState({
+    title: '',
+    message: '',
+    type: 'academic'
+  });
   const [clearCountLoadingId, setClearCountLoadingId] = useState('');
   const [blockReasonDrafts, setBlockReasonDrafts] = useState({});
   const [blockReasonOpenId, setBlockReasonOpenId] = useState('');
@@ -53,6 +64,7 @@ const Students = () => {
 
   const isManagement = user?.role === 'management';
   const isFaculty = user?.role === 'faculty';
+  const canMessageFaculty = ['management', 'admin', 'hod'].includes(user?.role);
   const facultyDepartment = user?.profile?.department || '';
   const canManageStudentRecords = ['admin', 'management', 'hod', 'faculty'].includes(user?.role);
 
@@ -81,7 +93,14 @@ const Students = () => {
     return [...examsFromExamModule, ...examsFromResultsModule];
   };
 
-  const fetchStudentDetails = async (studentId) => {
+  const fetchStudentDetails = async (studentInput) => {
+    const studentId = typeof studentInput === 'string' ? studentInput : studentInput?._id;
+    const studentRef = typeof studentInput === 'string'
+      ? students.find((entry) => entry._id === studentInput)
+      : studentInput;
+
+    if (!studentId) return;
+
     try {
       const [attendanceRes, examsRes, resultsRes] = await Promise.allSettled([
         axios.get(`/api/attendance/student/${studentId}`),
@@ -112,6 +131,30 @@ const Students = () => {
         }
       }));
     }
+
+    if (studentRef?.department && studentRef?.semester) {
+      try {
+        const classFacultyRes = await classFacultyAPI.getAll({
+          department: studentRef.department,
+          semester: studentRef.semester
+        });
+        const assignment = Array.isArray(classFacultyRes.data) ? classFacultyRes.data[0] : null;
+        setClassFacultyByStudent((prev) => ({
+          ...prev,
+          [studentId]: assignment?.faculty || null
+        }));
+      } catch (error) {
+        setClassFacultyByStudent((prev) => ({
+          ...prev,
+          [studentId]: null
+        }));
+      }
+    } else {
+      setClassFacultyByStudent((prev) => ({
+        ...prev,
+        [studentId]: null
+      }));
+    }
   };
 
   const calculateAttendance = (studentId) => {
@@ -122,7 +165,7 @@ const Students = () => {
     
     if (attendanceArray.length === 0) return { percentage: 0, present: 0, total: 0 };
     
-    const present = attendanceArray.filter(a => a.status === 'present' || a.status === 'P').length;
+    const present = attendanceArray.filter(a => ['present', 'p', 'od', 'late'].includes((a.status || '').toLowerCase())).length;
     const total = attendanceArray.length;
     const percentage = Math.round((present / total) * 100);
     
@@ -149,7 +192,60 @@ const Students = () => {
       setSelectedStudent(null);
     } else {
       setSelectedStudent(student);
-      await fetchStudentDetails(student._id);
+      await fetchStudentDetails(student);
+    }
+  };
+
+  const openMessageModal = (student) => {
+    const faculty = classFacultyByStudent[student._id];
+    if (!faculty) {
+      toast.error('Class faculty not assigned for this student');
+      return;
+    }
+
+    const studentName = `${student.firstName} ${student.lastName}`.trim();
+    const title = `Regarding ${studentName} (${student.studentId || 'Student'})`;
+    const message = [
+      `Hi ${faculty.firstName},`,
+      '',
+      `I'd like to discuss ${studentName} (${student.studentId || 'Student ID'}) from ${student.department} - Semester ${student.semester}.`,
+      '',
+      'Reason:',
+      ''
+    ].join('\n');
+
+    setMessageTarget({ student, faculty });
+    setMessageDraft({
+      title,
+      message,
+      type: 'academic'
+    });
+    setMessageOpenId(student._id);
+  };
+
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!messageTarget?.faculty?._id) {
+      toast.error('Class faculty not assigned');
+      return;
+    }
+
+    try {
+      setMessageSending(true);
+      await notificationsAPI.create({
+        title: messageDraft.title,
+        message: messageDraft.message,
+        type: messageDraft.type || 'academic',
+        targetAudience: 'faculty',
+        targetFaculty: messageTarget.faculty._id
+      });
+      toast.success('Message sent to class faculty');
+      setMessageOpenId('');
+      setMessageTarget(null);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to send message');
+    } finally {
+      setMessageSending(false);
     }
   };
 
@@ -158,7 +254,7 @@ const Students = () => {
     if (!selectedStudent) return;
     
     const interval = setInterval(() => {
-      fetchStudentDetails(selectedStudent._id);
+      fetchStudentDetails(selectedStudent);
     }, 30000);
 
     return () => clearInterval(interval);
@@ -409,6 +505,8 @@ const Students = () => {
 
   const filteredStudents = students.filter((student) => {
     if (isFaculty && student.department !== facultyDepartment) return false;
+    if (filterDepartment && student.department !== filterDepartment) return false;
+    if (filterSemester && String(student.semester) !== String(filterSemester)) return false;
 
     const query = searchTerm.toLowerCase().trim();
     if (!query) return true;
@@ -423,6 +521,10 @@ const Students = () => {
       studentId.includes(query)
     );
   });
+
+  const uniqueDepartments = Array.from(new Set(filteredStudents.map((student) => student.department).filter(Boolean)));
+  const uniqueSemesters = Array.from(new Set(filteredStudents.map((student) => student.semester).filter((sem) => sem !== undefined && sem !== null)));
+  const blockedCount = filteredStudents.filter((student) => student.user?.isEmailBlocked).length;
 
   const canManageStudent = (student) => {
     if (!canManageStudentRecords) return false;
@@ -487,19 +589,67 @@ const Students = () => {
       </div>
 
       {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-        <input
-          type="text"
-          placeholder="Search students..."
-          className="input-field pl-10"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+          <input
+            type="text"
+            placeholder="Search students..."
+            className="input-field pl-10"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        <select
+          className="input-field"
+          value={filterDepartment}
+          onChange={(e) => setFilterDepartment(e.target.value)}
+        >
+          <option value="">All Departments</option>
+          {Array.from(new Set(students.map((student) => student.department).filter(Boolean)))
+            .sort()
+            .map((dept) => (
+              <option key={dept} value={dept}>{dept}</option>
+            ))}
+        </select>
+        <select
+          className="input-field"
+          value={filterSemester}
+          onChange={(e) => setFilterSemester(e.target.value)}
+        >
+          <option value="">All Semesters</option>
+          {Array.from(new Set(students.map((student) => student.semester).filter((sem) => sem !== undefined && sem !== null)))
+            .sort((a, b) => Number(a) - Number(b))
+            .map((sem) => (
+              <option key={sem} value={sem}>Semester {sem}</option>
+            ))}
+        </select>
       </div>
 
       {/* Students Table */}
       <div className="card">
+        <div className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-4">
+          <div className="rounded-xl border border-blue-100 bg-blue-50 p-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-600">Total</p>
+            <p className="mt-2 text-2xl font-bold text-blue-900">{filteredStudents.length}</p>
+            <p className="text-xs text-blue-700">Visible students</p>
+          </div>
+          <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600">Departments</p>
+            <p className="mt-2 text-2xl font-bold text-emerald-900">{uniqueDepartments.length}</p>
+            <p className="text-xs text-emerald-700">In current view</p>
+          </div>
+          <div className="rounded-xl border border-purple-100 bg-purple-50 p-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-purple-600">Semesters</p>
+            <p className="mt-2 text-2xl font-bold text-purple-900">{uniqueSemesters.length}</p>
+            <p className="text-xs text-purple-700">In current view</p>
+          </div>
+          <div className="rounded-xl border border-rose-100 bg-rose-50 p-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-rose-600">Mail Blocks</p>
+            <p className="mt-2 text-2xl font-bold text-rose-900">{blockedCount}</p>
+            <p className="text-xs text-rose-700">Currently blocked</p>
+          </div>
+        </div>
         <div className="space-y-3 p-4">
           {filteredStudents.map((student, index) => (
             <div
@@ -760,7 +910,7 @@ const Students = () => {
                             <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
                               {studentDetails[student._id].attendance.slice(0, 10).map((att, idx) => (
                                 <div key={idx} className="flex items-center gap-2 text-xs bg-gray-50 rounded p-2">
-                                  {att.status === 'present' || att.status === 'P' ? (
+                                  {['present', 'p', 'od', 'late'].includes((att.status || '').toLowerCase()) ? (
                                     <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
                                   ) : (
                                     <XCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
@@ -774,6 +924,76 @@ const Students = () => {
                             </div>
                           </div>
                         )}
+
+                        {/* Class Faculty */}
+                        <div className="bg-white rounded-lg p-4 shadow-sm border border-blue-200">
+                          <div className="flex items-center gap-2 mb-2">
+                            <GraduationCap className="h-4 w-4 text-blue-600" />
+                            <h4 className="font-semibold text-gray-800 text-sm">Class Faculty</h4>
+                          </div>
+                          <p className="text-sm text-gray-700">
+                            {classFacultyByStudent[student._id]
+                              ? `${classFacultyByStudent[student._id].firstName} ${classFacultyByStudent[student._id].lastName}${classFacultyByStudent[student._id].facultyId ? ` (${classFacultyByStudent[student._id].facultyId})` : ''}`
+                              : 'Not assigned'}
+                          </p>
+                          {canMessageFaculty && (
+                            <button
+                              type="button"
+                              onClick={() => openMessageModal(student)}
+                              disabled={!classFacultyByStudent[student._id]}
+                              className="mt-3 inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              <Send className="h-4 w-4" />
+                              {messageOpenId === student._id ? 'Close Message' : 'Message Class Faculty'}
+                            </button>
+                          )}
+                          {messageOpenId === student._id && messageTarget && (
+                            <form onSubmit={handleSendMessage} className="mt-4 space-y-3 rounded-xl border border-blue-100 bg-blue-50 p-4">
+                              <div className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-600">
+                                Message Preview
+                              </div>
+                              <div className="text-xs text-blue-900">
+                                To: {messageTarget.faculty.firstName} {messageTarget.faculty.lastName}
+                                {messageTarget.faculty.facultyId ? ` (${messageTarget.faculty.facultyId})` : ''}
+                              </div>
+                              <input
+                                type="text"
+                                className="input-field"
+                                value={messageDraft.title}
+                                onChange={(e) => setMessageDraft((prev) => ({ ...prev, title: e.target.value }))}
+                                placeholder="Message title"
+                                required
+                              />
+                              <textarea
+                                className="input-field h-32 resize-none"
+                                value={messageDraft.message}
+                                onChange={(e) => setMessageDraft((prev) => ({ ...prev, message: e.target.value }))}
+                                placeholder="Write the message to the class faculty"
+                                required
+                              />
+                              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setMessageOpenId('');
+                                    setMessageTarget(null);
+                                  }}
+                                  className="btn-secondary w-full sm:w-auto"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  type="submit"
+                                  className="btn-primary flex w-full items-center justify-center gap-2 sm:w-auto"
+                                  disabled={messageSending}
+                                >
+                                  <Send className="h-4 w-4" />
+                                  {messageSending ? 'Sending...' : 'Send Message'}
+                                </button>
+                              </div>
+                            </form>
+                          )}
+                        </div>
 
                         {/* Block Details */}
                         <div className="bg-white rounded-lg p-4 shadow-sm border border-red-200">
@@ -1112,6 +1332,7 @@ const Students = () => {
           </div>
         </div>
       )}
+
     </div>
   );
 };

@@ -1,14 +1,23 @@
 import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Search } from 'lucide-react';
-import { facultyAPI } from '../utils/api';
+import { useAuth } from '../context/AuthContext';
+import { facultyAPI, classFacultyAPI } from '../utils/api';
 import toast from 'react-hot-toast';
 
 const Faculty = () => {
+  const { user } = useAuth();
   const [faculty, setFaculty] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingFaculty, setEditingFaculty] = useState(null);
+  const [assigning, setAssigning] = useState(false);
+  const [assignmentForm, setAssignmentForm] = useState({
+    department: '',
+    semester: '',
+    facultyId: ''
+  });
+  const [currentAssignment, setCurrentAssignment] = useState(null);
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -44,6 +53,34 @@ const Faculty = () => {
     }
   };
 
+  const fetchAssignment = async () => {
+    if (!assignmentForm.department || !assignmentForm.semester) {
+      setCurrentAssignment(null);
+      return;
+    }
+
+    try {
+      const response = await classFacultyAPI.getAll({
+        department: assignmentForm.department,
+        semester: assignmentForm.semester
+      });
+      const assignment = Array.isArray(response.data) ? response.data[0] : null;
+      setCurrentAssignment(assignment || null);
+      if (!assignmentForm.facultyId) {
+        setAssignmentForm((prev) => ({
+          ...prev,
+          facultyId: assignment?.faculty?._id || assignment?.faculty || ''
+        }));
+      }
+    } catch (error) {
+      setCurrentAssignment(null);
+    }
+  };
+
+  useEffect(() => {
+    fetchAssignment();
+  }, [assignmentForm.department, assignmentForm.semester]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -59,6 +96,29 @@ const Faculty = () => {
       setShowModal(false);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Operation failed');
+    }
+  };
+
+  const handleAssignClassFaculty = async (e) => {
+    e.preventDefault();
+    if (!assignmentForm.department || !assignmentForm.semester || !assignmentForm.facultyId) {
+      toast.error('Please select department, semester, and faculty');
+      return;
+    }
+
+    try {
+      setAssigning(true);
+      const response = await classFacultyAPI.setAssignment({
+        department: assignmentForm.department,
+        semester: assignmentForm.semester,
+        facultyId: assignmentForm.facultyId
+      });
+      toast.success(response.data?.message || 'Class faculty assigned');
+      fetchAssignment();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to assign class faculty');
+    } finally {
+      setAssigning(false);
     }
   };
 
@@ -136,8 +196,67 @@ const Faculty = () => {
     );
   }
 
+  const canAssignClassFaculty = ['management', 'admin', 'hod'].includes(user?.role);
+
   return (
     <div className="space-y-6">
+      {canAssignClassFaculty && (
+        <div className="card">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Assign Class Faculty</h2>
+          <form onSubmit={handleAssignClassFaculty} className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <select
+              className="input-field"
+              value={assignmentForm.department}
+              onChange={(e) => setAssignmentForm((prev) => ({ ...prev, department: e.target.value, facultyId: '' }))}
+              required
+            >
+              <option value="">Select Department</option>
+              <option value="Computer Science">Computer Science</option>
+              <option value="Electronics">Electronics</option>
+              <option value="Mechanical">Mechanical</option>
+              <option value="Civil">Civil</option>
+            </select>
+
+            <select
+              className="input-field"
+              value={assignmentForm.semester}
+              onChange={(e) => setAssignmentForm((prev) => ({ ...prev, semester: e.target.value, facultyId: '' }))}
+              required
+            >
+              <option value="">Select Semester</option>
+              {[1,2,3,4,5,6,7,8].map((sem) => (
+                <option key={sem} value={sem}>Semester {sem}</option>
+              ))}
+            </select>
+
+            <select
+              className="input-field"
+              value={assignmentForm.facultyId}
+              onChange={(e) => setAssignmentForm((prev) => ({ ...prev, facultyId: e.target.value }))}
+              required
+            >
+              <option value="">Select Faculty</option>
+              {faculty
+                .filter((member) => !assignmentForm.department || member.department === assignmentForm.department)
+                .map((member) => (
+                  <option key={member._id} value={member._id}>
+                    {member.firstName} {member.lastName} ({member.facultyId})
+                  </option>
+                ))}
+            </select>
+
+            <button type="submit" className="btn-primary" disabled={assigning}>
+              {assigning ? 'Saving...' : 'Assign'}
+            </button>
+          </form>
+          {currentAssignment?.faculty && (
+            <p className="text-sm text-gray-600 mt-3">
+              Current: {currentAssignment.faculty.firstName} {currentAssignment.faculty.lastName} ({currentAssignment.faculty.facultyId})
+            </p>
+          )}
+        </div>
+      )}
+
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-gray-900">Faculty Management</h1>
         <button

@@ -1,8 +1,24 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Users, Check, X, Clock, Search } from 'lucide-react';
-import { attendanceAPI, studentsAPI } from '../utils/api';
+import { Users, Check, X, Clock } from 'lucide-react';
+import { attendanceAPI, studentsAPI, facultyAPI, classFacultyAPI } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
+
+const formatAttendanceStatus = (status) => {
+  if (!status) return 'Unknown';
+  const normalized = status.toLowerCase();
+  if (normalized === 'od') return 'OD';
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+};
+
+const getAttendanceBadgeClass = (status) => {
+  const normalized = (status || '').toLowerCase();
+  if (normalized === 'present') return 'bg-green-100 text-green-800';
+  if (normalized === 'absent') return 'bg-red-100 text-red-800';
+  if (normalized === 'od') return 'bg-amber-100 text-amber-800';
+  if (normalized === 'late') return 'bg-yellow-100 text-yellow-800';
+  return 'bg-gray-100 text-gray-800';
+};
 
 const Attendance = () => {
   const { user } = useAuth();
@@ -11,23 +27,39 @@ const Attendance = () => {
     return <StudentAttendanceView />;
   }
 
-  if (user?.role === 'faculty') {
-    return <FacultyAttendanceView />;
-  }
-
-  if (user?.role === 'admin' || user?.role === 'management') {
-    return <AdminAttendanceView />;
-  }
-
-  return null;
+  return <StaffAttendancePage />;
 };
 
-// Faculty Attendance View
-const FacultyAttendanceView = () => {
+// Staff Attendance Page (request + approvals + admin view)
+const StaffAttendancePage = () => {
   const { user } = useAuth();
+  const isAdminView = user?.role === 'admin' || user?.role === 'management';
+
+  return (
+    <div className="space-y-10">
+      <StaffAttendanceView />
+      {isAdminView && <AdminAttendanceView />}
+    </div>
+  );
+};
+
+// Staff Attendance View
+const StaffAttendanceView = () => {
+  const { user } = useAuth();
+  const isFaculty = user?.role === 'faculty';
+  const canAssignClassFaculty = ['admin', 'management', 'hod'].includes(user?.role);
   const [students, setStudents] = useState([]);
   const [attendanceHistory, setAttendanceHistory] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [requestLoading, setRequestLoading] = useState(false);
+  const [pendingRequests, setPendingRequests] = useState([]);
+  const [requestError, setRequestError] = useState('');
+  const [myRequests, setMyRequests] = useState([]);
+  const [myRequestsLoading, setMyRequestsLoading] = useState(false);
+  const [myRequestsError, setMyRequestsError] = useState('');
+  const [facultyList, setFacultyList] = useState([]);
+  const [classFacultyId, setClassFacultyId] = useState('');
+  const [assigning, setAssigning] = useState(false);
   const [formData, setFormData] = useState({
     department: user?.profile?.department || '',
     semester: '',
@@ -40,13 +72,38 @@ const FacultyAttendanceView = () => {
     if (formData.department && formData.semester) {
       fetchStudents();
       fetchAttendanceHistory();
+      fetchClassFaculty();
     }
   }, [formData.department, formData.semester]);
+
+  useEffect(() => {
+    if (canAssignClassFaculty) {
+      fetchFacultyList();
+    }
+  }, [canAssignClassFaculty]);
+
+  useEffect(() => {
+    if (!canAssignClassFaculty || !formData.department || classFacultyId) return;
+    const deptFaculty = facultyList.filter((faculty) => faculty.department === formData.department);
+    if (deptFaculty.length === 1) {
+      setClassFacultyId(deptFaculty[0]._id);
+    }
+  }, [canAssignClassFaculty, formData.department, facultyList, classFacultyId]);
+
+  useEffect(() => {
+    if (isFaculty) {
+      fetchPendingRequests();
+    }
+  }, [isFaculty]);
+
+  useEffect(() => {
+    fetchMyRequests();
+  }, []);
 
   const fetchStudents = async () => {
     try {
       setLoading(true);
-      const response = await studentsAPI.getByDepartment(formData.department);
+      const response = await studentsAPI.getByDepartment(formData.department, { scope: 'attendance' });
       const filteredStudents = response.data.filter(
         student => student.semester === parseInt(formData.semester)
       );
@@ -64,6 +121,42 @@ const FacultyAttendanceView = () => {
     }
   };
 
+  const fetchPendingRequests = async () => {
+    try {
+      setRequestLoading(true);
+      setRequestError('');
+      const response = await attendanceAPI.getRequests({ status: 'pending' });
+      setPendingRequests(response.data || []);
+    } catch (error) {
+      const status = error.response?.status;
+      if (status === 403 || status === 404) {
+        setRequestError('Attendance requests are not available.');
+      } else {
+        setRequestError('Failed to fetch attendance requests.');
+      }
+    } finally {
+      setRequestLoading(false);
+    }
+  };
+
+  const fetchMyRequests = async () => {
+    try {
+      setMyRequestsLoading(true);
+      setMyRequestsError('');
+      const response = await attendanceAPI.getMyRequests();
+      setMyRequests(response.data || []);
+    } catch (error) {
+      const status = error.response?.status;
+      if (status === 403 || status === 404) {
+        setMyRequestsError('Attendance requests are not available.');
+      } else {
+        setMyRequestsError('Failed to fetch your attendance requests.');
+      }
+    } finally {
+      setMyRequestsLoading(false);
+    }
+  };
+
   const fetchAttendanceHistory = async () => {
     if (!formData.department || !formData.semester) return;
     
@@ -75,6 +168,50 @@ const FacultyAttendanceView = () => {
       setAttendanceHistory(response.data);
     } catch (error) {
       console.error('Failed to fetch attendance history');
+    }
+  };
+
+  const fetchFacultyList = async () => {
+    try {
+      const response = await facultyAPI.getAll();
+      setFacultyList(response.data || []);
+    } catch (error) {
+      toast.error('Failed to fetch faculty list');
+    }
+  };
+
+  const fetchClassFaculty = async () => {
+    try {
+      const response = await classFacultyAPI.getAll({
+        department: formData.department,
+        semester: formData.semester
+      });
+      const assignment = Array.isArray(response.data) ? response.data[0] : null;
+      setClassFacultyId(assignment?.faculty?._id || assignment?.faculty || '');
+    } catch (error) {
+      setClassFacultyId('');
+    }
+  };
+
+  const handleAssignClassFaculty = async () => {
+    if (!classFacultyId) {
+      toast.error('Please select a class faculty');
+      return;
+    }
+
+    try {
+      setAssigning(true);
+      const response = await classFacultyAPI.setAssignment({
+        department: formData.department,
+        semester: formData.semester,
+        facultyId: classFacultyId
+      });
+      toast.success(response.data?.message || 'Class faculty assigned');
+      fetchClassFaculty();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to assign class faculty');
+    } finally {
+      setAssigning(false);
     }
   };
 
@@ -93,7 +230,7 @@ const FacultyAttendanceView = () => {
         status: attendanceData[student._id] || 'present'
       }));
 
-      await attendanceAPI.mark({
+      const response = await attendanceAPI.mark({
         students: attendanceRecords,
         fn: students[0]?.fn || 'FN001',
         session: formData.session,
@@ -102,8 +239,12 @@ const FacultyAttendanceView = () => {
         department: formData.department
       });
 
-      toast.success('Attendance marked successfully');
+      toast.success(response.data?.message || 'Attendance submitted');
       fetchAttendanceHistory();
+      fetchMyRequests();
+      if (isFaculty) {
+        fetchPendingRequests();
+      }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to mark attendance');
     } finally {
@@ -124,7 +265,7 @@ const FacultyAttendanceView = () => {
       toast.success('Attendance updated');
       fetchAttendanceHistory();
     } catch (error) {
-      toast.error('Failed to update attendance');
+      toast.error(error.response?.data?.message || 'Failed to update attendance');
     }
   };
 
@@ -135,20 +276,47 @@ const FacultyAttendanceView = () => {
       await attendanceAPI.delete(id);
       toast.success('Attendance deleted');
       fetchAttendanceHistory();
+      if (isFaculty) {
+        fetchPendingRequests();
+      }
     } catch (error) {
       toast.error('Failed to delete attendance');
     }
   };
 
+  const handleApproveRequest = async (requestId) => {
+    try {
+      await attendanceAPI.approveRequest(requestId);
+      toast.success('Attendance request approved');
+      fetchPendingRequests();
+      fetchAttendanceHistory();
+      fetchMyRequests();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to approve request');
+    }
+  };
+
+  const handleRejectRequest = async (requestId) => {
+    try {
+      await attendanceAPI.rejectRequest(requestId, {});
+      toast.success('Attendance request rejected');
+      fetchPendingRequests();
+      fetchMyRequests();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to reject request');
+    }
+  };
+
   const stats = {
     total: students.length,
-    present: Object.values(attendanceData).filter(s => s === 'present').length,
-    absent: Object.values(attendanceData).filter(s => s === 'absent').length
+    present: Object.values(attendanceData).filter(s => ['present', 'od', 'late'].includes(s)).length,
+    absent: Object.values(attendanceData).filter(s => s === 'absent').length,
+    od: Object.values(attendanceData).filter(s => s === 'od').length
   };
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Mark Attendance</h1>
+      <h1 className="text-2xl font-bold text-gray-900">Submit Attendance</h1>
 
       <div className="card">
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -160,10 +328,10 @@ const FacultyAttendanceView = () => {
               required
             >
               <option value="">Select Department</option>
-              <option value="Computer Science">Computer Science</option>
-              <option value="Electronics">Electronics</option>
-              <option value="Mechanical">Mechanical</option>
-              <option value="Civil">Civil</option>
+              <option value="Computer Science">Dept: Computer Science (CSE)</option>
+              <option value="Electronics">Dept: Electronics (ECE)</option>
+              <option value="Mechanical">Dept: Mechanical (MECH)</option>
+              <option value="Civil">Dept: Civil (CIV)</option>
             </select>
 
             <select
@@ -174,7 +342,7 @@ const FacultyAttendanceView = () => {
             >
               <option value="">Select Semester</option>
               {[1,2,3,4,5,6,7,8].map(sem => (
-                <option key={sem} value={sem}>Semester {sem}</option>
+                <option key={sem} value={sem}>Sem {sem} (S{sem})</option>
               ))}
             </select>
 
@@ -197,9 +365,39 @@ const FacultyAttendanceView = () => {
             />
           </div>
 
+          {canAssignClassFaculty && formData.department && formData.semester && (
+            <div className="border-t border-gray-200 pt-4">
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">Class Faculty Assignment</h3>
+              <div className="flex flex-col md:flex-row md:items-center gap-3">
+                <select
+                  className="input-field md:flex-1"
+                  value={classFacultyId}
+                  onChange={(e) => setClassFacultyId(e.target.value)}
+                >
+                  <option value="">Select Class Faculty</option>
+                  {facultyList
+                    .filter((faculty) => !formData.department || faculty.department === formData.department)
+                    .map((faculty) => (
+                      <option key={faculty._id} value={faculty._id}>
+                        {faculty.firstName} {faculty.lastName} ({faculty.facultyId}) - {faculty.department}
+                      </option>
+                    ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={handleAssignClassFaculty}
+                  disabled={assigning}
+                  className="btn-primary md:w-auto"
+                >
+                  {assigning ? 'Saving...' : 'Save Class Faculty'}
+                </button>
+              </div>
+            </div>
+          )}
+
           {students.length > 0 && (
             <>
-              <div className="grid grid-cols-3 gap-4 mt-6">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
                 <div className="bg-blue-50 p-4 rounded-lg">
                   <div className="flex items-center">
                     <Users className="h-5 w-5 text-blue-600 mr-2" />
@@ -210,9 +408,16 @@ const FacultyAttendanceView = () => {
                 <div className="bg-green-50 p-4 rounded-lg">
                   <div className="flex items-center">
                     <Check className="h-5 w-5 text-green-600 mr-2" />
-                    <span className="text-sm font-medium text-green-600">Present</span>
+                    <span className="text-sm font-medium text-green-600">Present (incl. OD)</span>
                   </div>
                   <p className="text-2xl font-bold text-green-900">{stats.present}</p>
+                </div>
+                <div className="bg-amber-50 p-4 rounded-lg">
+                  <div className="flex items-center">
+                    <Clock className="h-5 w-5 text-amber-600 mr-2" />
+                    <span className="text-sm font-medium text-amber-600">OD</span>
+                  </div>
+                  <p className="text-2xl font-bold text-amber-900">{stats.od}</p>
                 </div>
                 <div className="bg-red-50 p-4 rounded-lg">
                   <div className="flex items-center">
@@ -248,6 +453,17 @@ const FacultyAttendanceView = () => {
                         </button>
                         <button
                           type="button"
+                          onClick={() => handleAttendanceChange(student._id, 'od')}
+                          className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                            attendanceData[student._id] === 'od'
+                              ? 'bg-amber-500 text-white'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
+                        >
+                          OD
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => handleAttendanceChange(student._id, 'absent')}
                           className={`px-4 py-2 rounded-lg text-sm font-medium ${
                             attendanceData[student._id] === 'absent'
@@ -273,6 +489,119 @@ const FacultyAttendanceView = () => {
         </form>
       </div>
 
+      {/* My Attendance Requests */}
+      <div className="card">
+        <h3 className="text-lg font-medium text-gray-900 mb-4">My Attendance Requests</h3>
+        {myRequestsLoading ? (
+          <p className="text-sm text-gray-500">Loading your requests...</p>
+        ) : myRequestsError ? (
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <p className="text-sm text-gray-500">{myRequestsError}</p>
+            <button
+              type="button"
+              onClick={fetchMyRequests}
+              className="px-3 py-1.5 text-sm rounded bg-gray-100 text-gray-700 hover:bg-gray-200"
+            >
+              Retry
+            </button>
+          </div>
+        ) : myRequests.length === 0 ? (
+          <p className="text-sm text-gray-500">No attendance requests sent yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {myRequests.map((request) => (
+              <div key={request._id} className="border rounded-lg p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <div>
+                  <p className="text-sm text-gray-500">
+                    {new Date(request.date).toLocaleDateString()} | {request.session} | {request.department} - Sem {request.semester}
+                  </p>
+                  <p className="text-sm text-gray-700">
+                    Class Faculty: {request.assignedFaculty?.firstName ? `${request.assignedFaculty.firstName} ${request.assignedFaculty.lastName}` : 'Assigned'}
+                    {request.assignedFaculty?.facultyId ? ` (${request.assignedFaculty.facultyId})` : ''}
+                  </p>
+                  {request.status === 'approved' && (
+                    <p className="text-sm text-green-700">
+                      Approved by {request.approvedByName || 'Faculty'}{request.approvedByFacultyId ? ` (${request.approvedByFacultyId})` : ''} on {request.approvedAt ? new Date(request.approvedAt).toLocaleString() : '-'}
+                    </p>
+                  )}
+                  {request.status === 'rejected' && (
+                    <p className="text-sm text-red-700">
+                      Rejected by {request.rejectedByName || 'Faculty'}{request.rejectedByFacultyId ? ` (${request.rejectedByFacultyId})` : ''} on {request.rejectedAt ? new Date(request.rejectedAt).toLocaleString() : '-'}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
+                    request.status === 'approved'
+                      ? 'bg-green-100 text-green-800'
+                      : request.status === 'rejected'
+                      ? 'bg-red-100 text-red-800'
+                      : 'bg-yellow-100 text-yellow-800'
+                  }`}>
+                    {request.status}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Pending Requests (Faculty) */}
+      {isFaculty && (
+        <div className="card">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Pending Attendance Requests</h3>
+          {requestLoading ? (
+            <p className="text-sm text-gray-500">Loading requests...</p>
+          ) : requestError ? (
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <p className="text-sm text-gray-500">{requestError}</p>
+              <button
+                type="button"
+                onClick={fetchPendingRequests}
+                className="px-3 py-1.5 text-sm rounded bg-gray-100 text-gray-700 hover:bg-gray-200"
+              >
+                Retry
+              </button>
+            </div>
+          ) : pendingRequests.length === 0 ? (
+            <p className="text-sm text-gray-500">No pending requests.</p>
+          ) : (
+            <div className="space-y-3">
+              {pendingRequests.map((request) => (
+                <div key={request._id} className="border rounded-lg p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                  <div>
+                    <p className="text-sm text-gray-500">
+                      {new Date(request.date).toLocaleDateString()} | {request.session} | {request.department} - Sem {request.semester}
+                    </p>
+                    <p className="text-sm text-gray-700">
+                      Requested By: {request.requestedBy?.email || 'Staff'} ({request.requestedBy?.role || 'staff'})
+                    </p>
+                    <p className="text-sm text-gray-500">Students: {request.students?.length || 0}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleApproveRequest(request._id)}
+                      className="px-3 py-1.5 text-sm rounded bg-green-600 text-white hover:bg-green-700"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRejectRequest(request._id)}
+                      className="px-3 py-1.5 text-sm rounded bg-red-600 text-white hover:bg-red-700"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Attendance History */}
       {formData.department && formData.semester && attendanceHistory.length > 0 && (
         <div className="card">
@@ -284,13 +613,17 @@ const FacultyAttendanceView = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Session</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Marked By</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Requested By</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Marked At</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Update</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {attendanceHistory.map((record) => (
+                {attendanceHistory.map((record) => {
+                  const canUpdateRecord = user?.role && user.role !== 'student';
+                  return (
                   <tr key={record._id}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {new Date(record.date).toLocaleDateString()}
@@ -301,32 +634,49 @@ const FacultyAttendanceView = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 capitalize">
                       {record.session}
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {record.faculty ? `${record.faculty.firstName} ${record.faculty.lastName}` : 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {record.requestedByName
+                        || record.requestedBy?.email
+                        || (record.faculty ? `${record.faculty.firstName} ${record.faculty.lastName} (Self)` : 'N/A')}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                       {new Date(record.updatedAt).toLocaleString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        record.status === 'present' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                      }`}>
-                        {record.status}
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getAttendanceBadgeClass(record.status)}`}>
+                        {formatAttendanceStatus(record.status)}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
-                      <button
-                        onClick={() => handleUpdateAttendance(record._id, record.status === 'present' ? 'absent' : 'present')}
-                        className="text-blue-600 hover:text-blue-800"
-                      >
-                        Toggle
-                      </button>
-                      <button
-                        onClick={() => handleDeleteAttendance(record._id)}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        Delete
-                      </button>
+                      {canUpdateRecord ? (
+                        <>
+                          <select
+                            className="border border-gray-300 rounded-md px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            value={(record.status || '').toLowerCase()}
+                            onChange={(e) => handleUpdateAttendance(record._id, e.target.value)}
+                            aria-label="Update attendance status"
+                          >
+                            <option value="present">Present</option>
+                            <option value="absent">Absent</option>
+                            <option value="od">OD (On Duty)</option>
+                          </select>
+                          <button
+                            onClick={() => handleDeleteAttendance(record._id)}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            Delete
+                          </button>
+                        </>
+                      ) : (
+                        <span className="text-xs text-gray-500">Only class faculty can update</span>
+                      )}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -424,10 +774,8 @@ const StudentAttendanceView = () => {
                     {new Date(record.createdAt).toLocaleString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      record.status === 'present' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                    }`}>
-                      {record.status}
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getAttendanceBadgeClass(record.status)}`}>
+                      {formatAttendanceStatus(record.status)}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -589,13 +937,11 @@ const AdminAttendanceView = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                         {new Date(record.updatedAt).toLocaleString()}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          record.status === 'present' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                        }`}>
-                          {record.status}
-                        </span>
-                      </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getAttendanceBadgeClass(record.status)}`}>
+                      {formatAttendanceStatus(record.status)}
+                    </span>
+                  </td>
                     </tr>
                   ))}
                 </tbody>

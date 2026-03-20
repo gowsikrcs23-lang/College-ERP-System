@@ -43,6 +43,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/students', require('./routes/students'));
 app.use('/api/faculty', require('./routes/faculty'));
 app.use('/api/attendance', require('./routes/attendance'));
+app.use('/api/class-faculty', require('./routes/classFaculty'));
 app.use('/api/exams', require('./routes/exams'));
 app.use('/api/exam-schedules', require('./routes/examSchedules'));
 app.use('/api/fees', require('./routes/fees'));

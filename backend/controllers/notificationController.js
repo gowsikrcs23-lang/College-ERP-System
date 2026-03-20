@@ -22,6 +22,38 @@ const normalizeNotificationPayload = async (req) => {
     }
   }
 
+  if (payload.targetFaculty === '') {
+    delete payload.targetFaculty;
+  }
+
+  if (payload.targetStudent === '') {
+    delete payload.targetStudent;
+  }
+
+  if (payload.targetFaculty) {
+    const selectedFaculty = await Faculty.findById(payload.targetFaculty).select('department').lean();
+    if (!selectedFaculty) {
+      const error = new Error('Target faculty not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    if (payload.department && selectedFaculty.department && payload.department !== selectedFaculty.department) {
+      const error = new Error('Target faculty does not belong to this department');
+      error.statusCode = 400;
+      throw error;
+    }
+  }
+
+  if (payload.targetStudent) {
+    const selectedStudent = await Student.findById(payload.targetStudent).select('department semester').lean();
+    if (!selectedStudent) {
+      const error = new Error('Target student not found');
+      error.statusCode = 404;
+      throw error;
+    }
+  }
+
   if (req.user.role === 'faculty' || req.user.role === 'hod') {
     const facultyProfile = await Faculty.findById(req.user.profile).select('department').lean();
 
@@ -42,6 +74,14 @@ const normalizeNotificationPayload = async (req) => {
 
   if (payload.targetAudience !== 'students' && payload.targetAudience !== 'department') {
     delete payload.department;
+  }
+
+  if (payload.targetAudience !== 'faculty') {
+    delete payload.targetFaculty;
+  }
+
+  if (payload.targetAudience !== 'students') {
+    delete payload.targetStudent;
   }
 
   return payload;
@@ -95,6 +135,14 @@ const getNotifications = async (req, res) => {
         targetAudience: 'students',
         $and: [
           {
+            $or: [
+              { targetStudent: { $exists: false } },
+              { targetStudent: null }
+            ]
+          },
+          {
+        $and: [
+          {
             $or: studentProfile?.department
               ? [
                   { department: { $exists: false } },
@@ -121,6 +169,13 @@ const getNotifications = async (req, res) => {
                 ]
           }
         ]
+          }
+        ]
+      });
+
+      audienceFilters.push({
+        targetAudience: 'students',
+        targetStudent: studentProfile._id
       });
 
       if (studentProfile?.department) {
@@ -135,9 +190,21 @@ const getNotifications = async (req, res) => {
         return res.status(404).json({ message: 'Faculty profile not found' });
       }
 
+      audienceFilters.push({
+        targetAudience: 'faculty',
+        targetFaculty: facultyProfile._id
+      });
       audienceFilters.push({ targetAudience: 'all' });
       audienceFilters.push({
         targetAudience: 'faculty',
+        $and: [
+          {
+            $or: [
+              { targetFaculty: { $exists: false } },
+              { targetFaculty: null }
+            ]
+          },
+          {
         $or: facultyProfile?.department
           ? [
               { department: { $exists: false } },
@@ -150,6 +217,8 @@ const getNotifications = async (req, res) => {
               { department: null },
               { department: '' }
             ]
+          }
+        ]
       });
 
       if (facultyProfile?.department) {
@@ -158,6 +227,14 @@ const getNotifications = async (req, res) => {
           department: facultyProfile.department
         });
       }
+    } else if (userRole === 'management' || userRole === 'admin') {
+      audienceFilters.push({ targetAudience: 'all' });
+      audienceFilters.push({ createdBy: req.user._id });
+      audienceFilters.push({ targetAudience: 'students' });
+      audienceFilters.push({ targetAudience: 'faculty' });
+      audienceFilters.push({ targetAudience: 'department' });
+      audienceFilters.push({ targetAudience: 'admission' });
+      audienceFilters.push({ targetAudience: 'accountant' });
     } else {
       audienceFilters.push({ targetAudience: 'all' });
       audienceFilters.push({ targetAudience: userRole });

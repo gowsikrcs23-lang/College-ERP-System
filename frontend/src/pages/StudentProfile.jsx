@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
+import { classFacultyAPI } from '../utils/api';
 import toast from 'react-hot-toast';
 import { User, Mail, Phone, Calendar, MapPin, BookOpen, GraduationCap, Edit } from 'lucide-react';
 
 const StudentProfile = () => {
   const { user } = useAuth();
   const [student, setStudent] = useState(null);
+  const [classFaculty, setClassFaculty] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showEditModal, setShowEditModal] = useState(false);
   const [formData, setFormData] = useState({
@@ -38,10 +40,27 @@ const StudentProfile = () => {
     fetchStudentProfile();
   }, []);
 
+  useEffect(() => {
+    if (!student?.department || !student?.semester) return;
+
+    const refreshClassFaculty = () => {
+      fetchClassFaculty(student.department, student.semester);
+    };
+
+    const interval = setInterval(refreshClassFaculty, 30000);
+    window.addEventListener('focus', refreshClassFaculty);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', refreshClassFaculty);
+    };
+  }, [student?.department, student?.semester]);
+
   const fetchStudentProfile = async () => {
     try {
       const response = await axios.get(`/api/students/${user.profile._id}`);
       setStudent(response.data);
+      setClassFaculty(null);
       setFormData({
         firstName: response.data.firstName,
         lastName: response.data.lastName,
@@ -61,10 +80,30 @@ const StudentProfile = () => {
           mailBlockReason: ''
         }
       });
+
+      await fetchClassFaculty(response.data?.department, response.data?.semester);
     } catch (error) {
       toast.error('Failed to fetch profile');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchClassFaculty = async (department, semester) => {
+    if (!department || !semester) {
+      setClassFaculty(null);
+      return;
+    }
+
+    try {
+      const classFacultyRes = await classFacultyAPI.getAll({
+        department,
+        semester
+      });
+      const assignment = Array.isArray(classFacultyRes.data) ? classFacultyRes.data[0] : null;
+      setClassFaculty(assignment?.faculty || null);
+    } catch (err) {
+      setClassFaculty(null);
     }
   };
 
@@ -208,6 +247,18 @@ const StudentProfile = () => {
                 <div>
                   <p className="text-sm text-gray-600">Semester</p>
                   <p className="font-medium text-gray-900">Semester {student.semester}</p>
+                </div>
+              </div>
+
+              <div className="flex items-start">
+                <BookOpen className="h-5 w-5 text-gray-400 mr-3 mt-0.5" />
+                <div>
+                  <p className="text-sm text-gray-600">Class Faculty</p>
+                  <p className="font-medium text-gray-900">
+                    {classFaculty
+                      ? `${classFaculty.firstName} ${classFaculty.lastName}${classFaculty.facultyId ? ` (${classFaculty.facultyId})` : ''}`
+                      : 'Not assigned'}
+                  </p>
                 </div>
               </div>
 

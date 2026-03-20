@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { studentsAPI } from '../utils/api';
 import { 
   Menu, 
   X, 
@@ -23,6 +24,42 @@ const Layout = ({ children }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [mailUnblockCount, setMailUnblockCount] = useState(0);
+
+  useEffect(() => {
+    const loadMailUnblockCount = async () => {
+      if (!user?.role || !['management', 'faculty'].includes(user.role)) {
+        setMailUnblockCount(0);
+        return;
+      }
+      try {
+        const response = await studentsAPI.getAll();
+        const allStudents = Array.isArray(response.data) ? response.data : [];
+        const blockedStudents = allStudents.filter((student) => student.user?.isEmailBlocked);
+
+        if (user.role === 'faculty') {
+          const department = user?.profile?.department;
+          const pendingFaculty = blockedStudents.filter(
+            (student) =>
+              !student.user?.unblockApprovedByFaculty &&
+              (!department || student.department === department)
+          );
+          setMailUnblockCount(pendingFaculty.length);
+          return;
+        }
+
+        setMailUnblockCount(blockedStudents.length);
+      } catch (error) {
+        setMailUnblockCount(0);
+      }
+    };
+
+    loadMailUnblockCount();
+  }, [user?.role, user?.profile?.department]);
+
+  const mailUnblockBadge = useMemo(() => {
+    return mailUnblockCount > 99 ? '99+' : String(mailUnblockCount);
+  }, [mailUnblockCount]);
 
   const handleLogout = () => {
     logout();
@@ -43,7 +80,9 @@ const Layout = ({ children }) => {
         { name: 'Attendance', href: '/attendance', icon: Calendar },
         { name: 'Exam Schedule', href: '/exam-schedule', icon: BookOpen },
         { name: 'Results', href: '/results', icon: FileText },
-        ...(user?.role === 'management' ? [{ name: 'Mail Unblock', href: '/mail-unblock', icon: ShieldCheck }] : []),
+        ...(user?.role === 'management'
+          ? [{ name: 'Mail Unblock', href: '/mail-unblock', icon: ShieldCheck, badgeCount: mailUnblockCount }]
+          : []),
         { name: 'Fees', href: '/fees', icon: DollarSign },
         { name: 'Notifications', href: '/notifications', icon: Bell },
         { name: 'Timetables', href: '/timetables', icon: Clock }
@@ -58,7 +97,7 @@ const Layout = ({ children }) => {
         { name: 'Attendance', href: '/attendance', icon: Calendar },
         { name: 'Exam Schedule', href: '/exam-schedule', icon: BookOpen },
         { name: 'Results', href: '/results', icon: FileText },
-        { name: 'Mail Unblock', href: '/mail-unblock', icon: ShieldCheck },
+        { name: 'Mail Unblock', href: '/mail-unblock', icon: ShieldCheck, badgeCount: mailUnblockCount },
         { name: 'Reports', href: '/reports', icon: FileText },
         { name: 'Fees', href: '/fees', icon: DollarSign },
         { name: 'Notifications', href: '/notifications', icon: Bell },
@@ -74,6 +113,7 @@ const Layout = ({ children }) => {
         { name: 'Exam Schedule', href: '/exam-schedule', icon: BookOpen },
         { name: 'Results', href: '/results', icon: FileText },
         { name: 'Reports', href: '/reports', icon: FileText },
+        { name: 'Mail Unblock', href: '/mail-unblock', icon: ShieldCheck, badgeCount: mailUnblockCount },
         { name: 'Fees', href: '/fees', icon: DollarSign },
         { name: 'Exams', href: '/exams', icon: FileText },
         { name: 'Notifications', href: '/notifications', icon: Bell },
@@ -147,6 +187,11 @@ const Layout = ({ children }) => {
                 >
                   <Icon className="nav-item-animate__icon mr-3 h-5 w-5" />
                   {item.name}
+                  {item.badgeCount > 0 && (
+                    <span className="ml-auto rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
+                      {item.badgeCount > 99 ? '99+' : item.badgeCount}
+                    </span>
+                  )}
                 </Link>
               );
             })}
@@ -176,6 +221,11 @@ const Layout = ({ children }) => {
                 >
                   <Icon className="nav-item-animate__icon mr-3 h-5 w-5" />
                   {item.name}
+                  {item.badgeCount > 0 && (
+                    <span className="ml-auto rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
+                      {item.badgeCount > 99 ? '99+' : item.badgeCount}
+                    </span>
+                  )}
                 </Link>
               );
             })}

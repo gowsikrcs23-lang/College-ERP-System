@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { studentsAPI, attendanceAPI } from '../utils/api';
+import { studentsAPI, attendanceAPI, classFacultyAPI } from '../utils/api';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { 
@@ -17,6 +17,7 @@ const ViewStudent = () => {
   const [results, setResults] = useState([]);
   const [attendance, setAttendance] = useState([]);
   const [fees, setFees] = useState([]);
+  const [classFaculty, setClassFaculty] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('details');
 
@@ -50,6 +51,18 @@ const ViewStudent = () => {
     try {
       const studentRes = await studentsAPI.getById(id);
       setStudent(studentRes.data);
+      setClassFaculty(null);
+
+      try {
+        const classFacultyRes = await classFacultyAPI.getAll({
+          department: studentRes.data?.department,
+          semester: studentRes.data?.semester
+        });
+        const assignment = Array.isArray(classFacultyRes.data) ? classFacultyRes.data[0] : null;
+        setClassFaculty(assignment?.faculty || null);
+      } catch (err) {
+        setClassFaculty(null);
+      }
 
       // Fetch exams data
       try {
@@ -85,7 +98,7 @@ const ViewStudent = () => {
 
   const calculateAttendancePercentage = () => {
     if (!attendance || attendance.length === 0) return 0;
-    const present = attendance.filter(a => a.status === 'present' || a.status === 'P').length;
+    const present = attendance.filter(a => ['present', 'p', 'od', 'late'].includes((a.status || '').toLowerCase())).length;
     return Math.round((present / attendance.length) * 100);
   };
 
@@ -449,6 +462,18 @@ const ViewStudent = () => {
                   </div>
                 </div>
 
+                <div className="flex items-start">
+                  <BookOpen className="h-5 w-5 text-gray-400 mr-3 mt-0.5" />
+                  <div>
+                    <p className="text-sm text-gray-600">Class Faculty</p>
+                    <p className="font-medium text-gray-900">
+                      {classFaculty
+                        ? `${classFaculty.firstName} ${classFaculty.lastName}${classFaculty.facultyId ? ` (${classFaculty.facultyId})` : ''}`
+                        : 'Not assigned'}
+                    </p>
+                  </div>
+                </div>
+
                 {student.batch && (
                   <div className="flex items-start">
                     <Calendar className="h-5 w-5 text-gray-400 mr-3 mt-0.5" />
@@ -623,11 +648,16 @@ const ViewStudent = () => {
                       <p className="text-sm text-gray-500">{record.date ? new Date(record.date).toLocaleDateString() : '-'} • {record.session || ''}</p>
                     </div>
                     <span className={`px-3 py-1 text-xs font-medium rounded-full flex-shrink-0 ${
-                      record.status === 'present' || record.status === 'P' ? 'bg-green-100 text-green-800' :
-                      record.status === 'absent' || record.status === 'A' ? 'bg-red-100 text-red-800' :
+                      ['present', 'p', 'od', 'late'].includes((record.status || '').toLowerCase()) ? 'bg-green-100 text-green-800' :
+                      ['absent', 'a'].includes((record.status || '').toLowerCase()) ? 'bg-red-100 text-red-800' :
                       'bg-yellow-100 text-yellow-800'
                     }`}>
-                      {record.status === 'P' ? 'Present' : record.status === 'A' ? 'Absent' : record.status}
+                      {(record.status || '').toLowerCase() === 'od' ? 'OD' :
+                        (record.status || '').toLowerCase() === 'p' ? 'Present' :
+                        (record.status || '').toLowerCase() === 'a' ? 'Absent' :
+                        (record.status || '').toLowerCase() === 'present' ? 'Present' :
+                        (record.status || '').toLowerCase() === 'absent' ? 'Absent' :
+                        record.status}
                     </span>
                   </div>
                 ))}
