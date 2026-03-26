@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Users, GraduationCap, Calendar, FileText, DollarSign, Home, Bell, ChevronRight, User, ShieldAlert } from 'lucide-react';
 import { studentsAPI, facultyAPI, notificationsAPI, classFacultyAPI } from '../utils/api';
+import { formatSemester } from '../utils/semester';
 import AttendanceStats from '../components/AttendanceStats';
 
 const Dashboard = () => {
@@ -219,7 +220,7 @@ const Dashboard = () => {
                   <span className="capitalize">Audience: {latestNotification.targetAudience}</span>
                 )}
                 {latestNotification.department && <span>Department: {latestNotification.department}</span>}
-                {latestNotification.semester && <span>Semester: {latestNotification.semester}</span>}
+                {latestNotification.semester && <span>Semester: {formatSemester(latestNotification.semester)}</span>}
               </div>
             </div>
 
@@ -255,7 +256,7 @@ const Dashboard = () => {
               <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-4">
                 <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 font-semibold">Semester</p>
                 <p className="mt-2 text-lg font-bold text-indigo-950">
-                  {studentProfile?.semester ? `Semester ${studentProfile.semester}` : 'N/A'}
+                  {studentProfile?.semester ? `Semester ${formatSemester(studentProfile.semester)}` : 'N/A'}
                 </p>
                 <p className="text-xs text-indigo-700">Batch: {studentProfile?.batch || 'N/A'}</p>
               </div>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Plus, Trash2, Clock } from 'lucide-react';
 import { timetablesAPI, facultyAPI } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import { formatSemester, toRoman } from '../utils/semester';
 import toast from 'react-hot-toast';
 
 const Timetables = () => {
@@ -324,7 +325,7 @@ const Timetables = () => {
               <label className="block text-sm font-medium text-gray-700 mb-1">Semester:</label>
               <select className="input-field" value={filterSemester} onChange={(e) => setFilterSemester(e.target.value)}>
                 <option value="">All Semesters</option>
-                {semesters.map((semester) => <option key={semester} value={semester}>Semester {semester}</option>)}
+                {semesters.map((semester) => <option key={semester} value={semester}>Semester {toRoman(semester)}</option>)}
               </select>
             </div>
           </div>
@@ -336,7 +337,7 @@ const Timetables = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-blue-800"><strong>Your Department:</strong> {user.profile?.department || 'Not assigned'}</p>
-              <p className="text-sm text-blue-800"><strong>Your Semester:</strong> {user.profile?.semester || 'Not assigned'}</p>
+              <p className="text-sm text-blue-800"><strong>Your Semester:</strong> {user.profile?.semester ? formatSemester(user.profile.semester) : 'Not assigned'}</p>
             </div>
             <Clock className="h-8 w-8 text-blue-600" />
           </div>
@@ -364,7 +365,7 @@ const Timetables = () => {
               <div className="flex justify-between items-start mb-3">
                 <div>
                   <h3 className="font-medium text-gray-900">{timetable.department}</h3>
-                  <p className="text-sm text-gray-600">Semester {timetable.semester}</p>
+                  <p className="text-sm text-gray-600">Semester {formatSemester(timetable.semester)}</p>
                   <p className="text-xs text-gray-500">{timetable.academicYear}</p>
                 </div>
                 {canManageTimetables && (
@@ -386,7 +387,7 @@ const Timetables = () => {
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-bold text-gray-900">
-              {selectedTimetable.department} - Semester {selectedTimetable.semester}
+              {selectedTimetable.department} - Semester {formatSemester(selectedTimetable.semester)}
             </h2>
             {!isStudent && (
               <button onClick={() => setSelectedTimetable(null)} className="btn-secondary">
@@ -489,7 +490,7 @@ const Timetables = () => {
                     required
                   >
                     <option value="">Select</option>
-                    {semesters.map((semester) => <option key={semester} value={semester}>Semester {semester}</option>)}
+                    {semesters.map((semester) => <option key={semester} value={semester}>Semester {toRoman(semester)}</option>)}
                   </select>
                 </div>
                 <div>

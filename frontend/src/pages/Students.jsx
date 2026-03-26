@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Search, TrendingUp, Clock, BookOpen, User, ShieldAlert, CheckCircle2, XCircle, GraduationCap, Send } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, TrendingUp, Clock, BookOpen, User, ShieldAlert, CheckCircle2, XCircle, GraduationCap, Send, Download } from 'lucide-react';
 import { studentsAPI, classFacultyAPI, notificationsAPI } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import { formatSemester, toRoman } from '../utils/semester';
+import { exportToCsv } from '../utils/csv';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
@@ -208,7 +210,7 @@ const Students = () => {
     const message = [
       `Hi ${faculty.firstName},`,
       '',
-      `I'd like to discuss ${studentName} (${student.studentId || 'Student ID'}) from ${student.department} - Semester ${student.semester}.`,
+      `I'd like to discuss ${studentName} (${student.studentId || 'Student ID'}) from ${student.department} - Semester ${formatSemester(student.semester)}.`,
       '',
       'Reason:',
       ''
@@ -526,6 +528,37 @@ const Students = () => {
   const uniqueSemesters = Array.from(new Set(filteredStudents.map((student) => student.semester).filter((sem) => sem !== undefined && sem !== null)));
   const blockedCount = filteredStudents.filter((student) => student.user?.isEmailBlocked).length;
 
+  const handleExportStudents = () => {
+    if (filteredStudents.length === 0) {
+      toast.error('No students to export');
+      return;
+    }
+
+    const rows = filteredStudents.map((student) => ({
+      studentId: student.studentId || '',
+      name: `${student.firstName || ''} ${student.lastName || ''}`.trim(),
+      email: student.email || '',
+      department: student.department || '',
+      semester: student.semester ?? '',
+      batch: student.batch || '',
+      phone: student.phone || '',
+      registrationNumber: student.bio?.registrationNumber || '',
+      emailBlocked: student.user?.isEmailBlocked ? 'Yes' : 'No'
+    }));
+
+    exportToCsv('students_export.csv', rows, [
+      { key: 'studentId', label: 'Student ID' },
+      { key: 'name', label: 'Name' },
+      { key: 'email', label: 'Email' },
+      { key: 'department', label: 'Department' },
+      { key: 'semester', label: 'Semester' },
+      { key: 'batch', label: 'Batch' },
+      { key: 'phone', label: 'Phone' },
+      { key: 'registrationNumber', label: 'Registration No.' },
+      { key: 'emailBlocked', label: 'Email Blocked' }
+    ]);
+  };
+
   const canManageStudent = (student) => {
     if (!canManageStudentRecords) return false;
     if (!isFaculty) return true;
@@ -558,34 +591,44 @@ const Students = () => {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Students Management</h1>
-        {canManageStudentRecords && (
+        <div className="flex flex-wrap items-center gap-2">
           <button
-            onClick={() => {
-              resetForm();
-              // Auto-generate student ID and registration number for new student
-              const newStudentId = generateNextStudentId(students);
-              const currentDept = isFaculty
-                ? (facultyDepartment || formData.department || 'Computer Science')
-                : (formData.department || 'Computer Science');
-              const newRegNumber = generateRegistrationNumber(students, currentDept);
-              setFormData(prev => ({ 
-                ...prev, 
-                studentId: newStudentId,
-                department: currentDept,
-                bio: {
-                  ...prev.bio,
-                  fullName: '',
-                  registrationNumber: newRegNumber
-                }
-              }));
-              setShowModal(true);
-            }}
-            className="btn-primary flex items-center gap-2"
+            type="button"
+            onClick={handleExportStudents}
+            className="btn-secondary flex items-center gap-2"
           >
-            <Plus className="h-4 w-4" />
-            Add Student
+            <Download className="h-4 w-4" />
+            Export CSV
           </button>
-        )}
+          {canManageStudentRecords && (
+            <button
+              onClick={() => {
+                resetForm();
+                // Auto-generate student ID and registration number for new student
+                const newStudentId = generateNextStudentId(students);
+                const currentDept = isFaculty
+                  ? (facultyDepartment || formData.department || 'Computer Science')
+                  : (formData.department || 'Computer Science');
+                const newRegNumber = generateRegistrationNumber(students, currentDept);
+                setFormData(prev => ({ 
+                  ...prev, 
+                  studentId: newStudentId,
+                  department: currentDept,
+                  bio: {
+                    ...prev.bio,
+                    fullName: '',
+                    registrationNumber: newRegNumber
+                  }
+                }));
+                setShowModal(true);
+              }}
+              className="btn-primary flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Add Student
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Search */}
@@ -621,7 +664,7 @@ const Students = () => {
           {Array.from(new Set(students.map((student) => student.semester).filter((sem) => sem !== undefined && sem !== null)))
             .sort((a, b) => Number(a) - Number(b))
             .map((sem) => (
-              <option key={sem} value={sem}>Semester {sem}</option>
+              <option key={sem} value={sem}>Semester {toRoman(sem)}</option>
             ))}
         </select>
       </div>
@@ -824,7 +867,7 @@ const Students = () => {
                               <BookOpen className="h-5 w-5 text-indigo-600" />
                               <div>
                                 <p className="text-xs text-gray-500">Semester</p>
-                                <p className="text-lg font-bold text-gray-900">{student.semester || 'N/A'}</p>
+                                <p className="text-lg font-bold text-gray-900">{student.semester ? formatSemester(student.semester) : 'N/A'}</p>
                                 <p className="text-xs text-gray-400">{student.batch || 'Batch N/A'}</p>
                               </div>
                             </div>
@@ -1160,7 +1203,7 @@ const Students = () => {
 
                   {/* Password and Phone Row for edit */}
                   {editingStudent && (
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-5">
                       <div>
                         <label className="block text-xs font-medium text-gray-700 mb-1">Phone</label>
                         <input
@@ -1220,8 +1263,24 @@ const Students = () => {
                         >
                           <option value="">Select</option>
                           {[1,2,3,4,5,6,7,8].map(sem => (
-                            <option key={sem} value={sem}>{sem}</option>
+                            <option key={sem} value={sem}>Semester {toRoman(sem)}</option>
                           ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Batch</label>
+                        <select
+                          className="input-field text-sm"
+                          value={formData.batch}
+                          onChange={(e) => setFormData({...formData, batch: e.target.value})}
+                          disabled={isFaculty}
+                          required
+                        >
+                          <option value="">Select</option>
+                          <option value="2023-2027">2023-27</option>
+                          <option value="2024-2028">2024-28</option>
+                          <option value="2025-2029">2025-29</option>
+                          <option value="2026-2030">2026-30</option>
                         </select>
                       </div>
                     </div>
@@ -1259,17 +1318,17 @@ const Students = () => {
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-gray-700 mb-1">Semester</label>
-                        <select
-                          className="input-field text-sm"
-                          value={formData.semester}
-                          onChange={(e) => setFormData({...formData, semester: e.target.value})}
-                          required
-                        >
-                          <option value="">Select</option>
-                          {[1,2,3,4,5,6,7,8].map(sem => (
-                            <option key={sem} value={sem}>{sem}</option>
-                          ))}
-                        </select>
+                      <select
+                        className="input-field text-sm"
+                        value={formData.semester}
+                        onChange={(e) => setFormData({...formData, semester: e.target.value})}
+                        required
+                      >
+                        <option value="">Select</option>
+                        {[1,2,3,4,5,6,7,8].map(sem => (
+                          <option key={sem} value={sem}>Semester {toRoman(sem)}</option>
+                        ))}
+                      </select>
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-gray-700 mb-1">Batch</label>

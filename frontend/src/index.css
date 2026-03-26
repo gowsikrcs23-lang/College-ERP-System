@@ -27,10 +27,19 @@
 
   body {
     color: var(--app-ink);
+    user-select: none;
+    caret-color: transparent;
   }
 
   #root { 
     min-height: 100vh;
+  }
+
+  input,
+  textarea,
+  [contenteditable="true"] {
+    user-select: text;
+    caret-color: auto;
   }
 }
 

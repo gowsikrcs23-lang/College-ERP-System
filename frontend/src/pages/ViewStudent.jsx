@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { studentsAPI, attendanceAPI, classFacultyAPI } from '../utils/api';
+import { formatSemester } from '../utils/semester';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { 
@@ -290,7 +291,7 @@ const ViewStudent = () => {
             <span className="px-3 py-1 bg-white/20 rounded-full text-xs md:text-sm font-medium">
               {student.department}
             </span>
-            <p className="text-blue-100 mt-2 text-sm">Semester {student.semester}</p>
+            <p className="text-blue-100 mt-2 text-sm">Semester {formatSemester(student.semester)}</p>
           </div>
         </div>
       </div>
@@ -458,7 +459,7 @@ const ViewStudent = () => {
                   <BookOpen className="h-5 w-5 text-gray-400 mr-3 mt-0.5" />
                   <div>
                     <p className="text-sm text-gray-600">Semester</p>
-                    <p className="font-medium text-gray-900">Semester {student.semester}</p>
+                    <p className="font-medium text-gray-900">Semester {formatSemester(student.semester)}</p>
                   </div>
                 </div>
 

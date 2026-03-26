@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { Calendar, Clock, MapPin, Plus, Edit, Trash2, BookOpen, Filter, X } from 'lucide-react';
+import { formatSemester, toRoman } from '../utils/semester';
 
 const departmentSubjects = {
   'Computer Science': {
@@ -322,7 +323,7 @@ const ExamSchedule = () => {
             >
               <option value="">All Semesters</option>
               {[1,2,3,4,5,6,7,8].map(sem => (
-                <option key={sem} value={sem}>Semester {sem}</option>
+                <option key={sem} value={sem}>Semester {toRoman(sem)}</option>
               ))}
             </select>
             {(filterDept || filterSem) && (
@@ -354,7 +355,7 @@ const ExamSchedule = () => {
           </p>
           {user?.role === 'student' && (
             <p className="text-sm text-gray-500">
-              Department: {user?.profile?.department || 'Not set'} | Semester: {user?.profile?.semester || 'Not set'}
+              Department: {user?.profile?.department || 'Not set'} | Semester: {user?.profile?.semester ? formatSemester(user.profile.semester) : 'Not set'}
             </p>
           )}
         </div>
@@ -372,7 +373,7 @@ const ExamSchedule = () => {
                       </h3>
                       {schedule.scheduleFor !== 'all_departments' && (
                         <span className="px-3 py-1 bg-blue-100 text-blue-800 text-sm font-semibold rounded-full">
-                          Semester {schedule.semester}
+                          Semester {formatSemester(schedule.semester)}
                         </span>
                       )}
                       <span className={`px-3 py-1 text-sm font-semibold rounded-full border ${getExamTypeColor(schedule.examType)}`}>
@@ -439,7 +440,7 @@ const ExamSchedule = () => {
                               <span className="text-sm font-medium text-gray-900">{exam.subject}</span>
                             </div>
                             {exam.department && exam.semester && (
-                              <p className="text-xs text-gray-500 mt-1">{exam.department} • Sem {exam.semester}</p>
+                              <p className="text-xs text-gray-500 mt-1">{exam.department} • Sem {formatSemester(exam.semester)}</p>
                             )}
                           </div>
                         </td>
@@ -572,7 +573,7 @@ const ExamSchedule = () => {
                   >
                     <option value="">Select Semester</option>
                     {[1,2,3,4,5,6,7,8].map(sem => (
-                      <option key={sem} value={sem}>Semester {sem}</option>
+                      <option key={sem} value={sem}>Semester {toRoman(sem)}</option>
                     ))}
                   </select>
                 </div>
@@ -608,7 +609,7 @@ const ExamSchedule = () => {
 
               {formData.scheduleFor === 'specific' && selectedStudent && (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-900">
-                  Target student department/semester: {selectedStudent.department} / Semester {selectedStudent.semester}
+                  Target student department/semester: {selectedStudent.department} / Semester {formatSemester(selectedStudent.semester)}
                 </div>
               )}
 
@@ -641,7 +642,7 @@ const ExamSchedule = () => {
                         >
                           <option value="">Select Semester</option>
                           {[1,2,3,4,5,6,7,8].map(sem => (
-                            <option key={sem} value={sem}>Sem {sem}</option>
+                            <option key={sem} value={sem}>Sem {toRoman(sem)}</option>
                           ))}
                         </select>
                       </>
@@ -654,7 +655,7 @@ const ExamSchedule = () => {
                         />
                         <input
                           className="input-field bg-gray-100"
-                          value={formData.semester ? `Semester ${formData.semester}` : ''}
+                          value={formData.semester ? `Semester ${formatSemester(formData.semester)}` : ''}
                           readOnly
                         />
                       </>
@@ -726,7 +727,7 @@ const ExamSchedule = () => {
                         <div className="flex-1">
                           <p className="font-medium text-gray-900">{exam.subject}</p>
                           <p className="text-sm text-gray-600">
-                            {exam.department && exam.semester ? `${exam.department} • Sem ${exam.semester} • ` : ''}
+                            {exam.department && exam.semester ? `${exam.department} • Sem ${formatSemester(exam.semester)} • ` : ''}
                             {new Date(exam.date).toLocaleDateString()} • {exam.startTime} - {exam.endTime} • {exam.room}
                           </p>
                         </div>

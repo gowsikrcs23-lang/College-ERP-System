@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Search } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Download } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { facultyAPI, classFacultyAPI } from '../utils/api';
+import { exportToCsv } from '../utils/csv';
 import toast from 'react-hot-toast';
 
 const Faculty = () => {
@@ -188,6 +189,33 @@ const Faculty = () => {
     facultyMember.department?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const handleExportFaculty = () => {
+    if (filteredFaculty.length === 0) {
+      toast.error('No faculty to export');
+      return;
+    }
+
+    const rows = filteredFaculty.map((member) => ({
+      facultyId: member.facultyId || '',
+      name: `${member.firstName || ''} ${member.lastName || ''}`.trim(),
+      email: member.email || '',
+      department: member.department || '',
+      designation: member.designation || '',
+      qualification: member.qualification || '',
+      phone: member.phone || ''
+    }));
+
+    exportToCsv('faculty_export.csv', rows, [
+      { key: 'facultyId', label: 'Faculty ID' },
+      { key: 'name', label: 'Name' },
+      { key: 'email', label: 'Email' },
+      { key: 'department', label: 'Department' },
+      { key: 'designation', label: 'Designation' },
+      { key: 'qualification', label: 'Qualification' },
+      { key: 'phone', label: 'Phone' }
+    ]);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -257,18 +285,28 @@ const Faculty = () => {
         </div>
       )}
 
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Faculty Management</h1>
-        <button
-          onClick={() => {
-            resetForm();
-            setShowModal(true);
-          }}
-          className="btn-primary flex items-center gap-2"
-        >
-          <Plus className="h-4 w-4" />
-          Add Faculty
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={handleExportFaculty}
+            className="btn-secondary flex items-center gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Export CSV
+          </button>
+          <button
+            onClick={() => {
+              resetForm();
+              setShowModal(true);
+            }}
+            className="btn-primary flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Add Faculty
+          </button>
+        </div>
       </div>
 
       {/* Search */}

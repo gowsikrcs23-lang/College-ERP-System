@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { Upload, FileText, Award, Trash2, Users } from 'lucide-react';
+import { formatSemester, toRoman } from '../utils/semester';
 
 const Results = () => {
   const { user } = useAuth();
@@ -218,7 +219,7 @@ const AdminResultsView = () => {
             >
               <option value="">Select Semester</option>
               {[1,2,3,4,5,6,7,8].map(sem => (
-                <option key={sem} value={sem}>Semester {sem}</option>
+                <option key={sem} value={sem}>Semester {toRoman(sem)}</option>
               ))}
             </select>
 
@@ -388,7 +389,7 @@ const ViewResultsSection = ({ showDelete }) => {
         </select>
         <select className="input-field" value={filters.semester} onChange={(e) => setFilters({...filters, semester: e.target.value})}>
           <option value="">Select Semester</option>
-          {[1,2,3,4,5,6,7,8].map(sem => <option key={sem} value={sem}>Semester {sem}</option>)}
+          {[1,2,3,4,5,6,7,8].map(sem => <option key={sem} value={sem}>Semester {toRoman(sem)}</option>)}
         </select>
         <select className="input-field" value={filters.batch} onChange={(e) => setFilters({...filters, batch: e.target.value})}>
           <option value="">Select Batch</option>
@@ -410,7 +411,7 @@ const ViewResultsSection = ({ showDelete }) => {
               <div className="flex justify-between items-start mb-2">
                 <div className="flex-1">
                   <h3 className="font-semibold text-gray-900">{result.student?.firstName} {result.student?.lastName} ({result.student?.studentId})</h3>
-                  <p className="text-sm text-gray-600">{result.examType} | Batch {result.batch} | Semester {result.semester}</p>
+                  <p className="text-sm text-gray-600">{result.examType} | Batch {result.batch} | Semester {formatSemester(result.semester)}</p>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className={`px-3 py-1 text-sm font-semibold rounded-full ${result.result === 'Pass' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
@@ -523,7 +524,7 @@ const StudentResultsView = () => {
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">{result.examType}</h3>
-                  <p className="text-sm text-gray-600">Batch {result.batch} | Semester {result.semester}</p>
+                  <p className="text-sm text-gray-600">Batch {result.batch} | Semester {formatSemester(result.semester)}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-2xl font-bold text-blue-600">{result.percentage}%</p>

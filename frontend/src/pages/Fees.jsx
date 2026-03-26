@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { DollarSign, Plus, Search, Eye, Trash2, Send } from 'lucide-react';
+import { formatSemester, toRoman } from '../utils/semester';
 
 const Fees = () => {
   const { user } = useAuth();
@@ -112,7 +113,7 @@ const AccountantFeesView = () => {
       ? `Fee Payment Reminder - ${studentName} (${fee?.student?.studentId || 'ID'})`
       : 'Fee Payment Reminder';
     const message = isSpecific
-      ? `Hello ${studentName},\n\nThis is a reminder about your fee payment.\n\nDue Amount: ₹${dueAmount}\nDue Date: ${dueDate}\nSemester: ${fee?.semester || 'N/A'}\nAcademic Year: ${fee?.academicYear || 'N/A'}\n\nPlease complete the payment at the earliest.\n\nAccounts Office`
+      ? `Hello ${studentName},\n\nThis is a reminder about your fee payment.\n\nDue Amount: ₹${dueAmount}\nDue Date: ${dueDate}\nSemester: ${formatSemester(fee?.semester) || 'N/A'}\nAcademic Year: ${fee?.academicYear || 'N/A'}\n\nPlease complete the payment at the earliest.\n\nAccounts Office`
       : 'Hello Students,\n\nThis is a reminder to clear your fee dues on time. Please check your fee status and complete any pending payments.\n\nAccounts Office';
 
     setNoticeTargetFee(fee);
@@ -222,7 +223,7 @@ const AccountantFeesView = () => {
                     <div className="text-sm font-medium text-gray-900">{fee.student?.firstName} {fee.student?.lastName}</div>
                     <div className="text-sm text-gray-500">{fee.student?.studentId}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{fee.semester}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatSemester(fee.semester)}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">₹{fee.totalAmount}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">₹{fee.paidAmount}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600">₹{fee.dueAmount}</td>
@@ -324,7 +325,9 @@ const AccountantFeesView = () => {
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <select className="input-field" value={formData.semester} onChange={(e) => setFormData({...formData, semester: e.target.value})} required>
                   <option value="">Semester</option>
-                  {[1,2,3,4,5,6,7,8].map(sem => <option key={sem} value={sem}>{sem}</option>)}
+                  {[1,2,3,4,5,6,7,8].map(sem => (
+                    <option key={sem} value={sem}>Semester {toRoman(sem)}</option>
+                  ))}
                 </select>
                 <select className="input-field" value={formData.academicYear} onChange={(e) => setFormData({...formData, academicYear: e.target.value})} required>
                   <option value="">Academic Year</option>
@@ -524,7 +527,7 @@ const ViewOnlyFeesView = () => {
                       <div className="text-sm text-gray-500">{fee.student?.studentId}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{fee.student?.department}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{fee.semester}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatSemester(fee.semester)}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">₹{fee.totalAmount}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">₹{fee.paidAmount}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600">₹{fee.dueAmount}</td>
@@ -638,7 +641,7 @@ const StudentFeesView = () => {
             <div key={fee._id} className="card">
               <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900">Semester {fee.semester}</h3>
+                  <h3 className="text-lg font-semibold text-gray-900">Semester {formatSemester(fee.semester)}</h3>
                   <p className="text-sm text-gray-600">{fee.academicYear}</p>
                 </div>
                 <span className={`px-3 py-1 text-sm font-semibold rounded-full ${

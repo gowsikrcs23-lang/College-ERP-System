@@ -4,6 +4,7 @@ import axios from 'axios';
 import { classFacultyAPI } from '../utils/api';
 import toast from 'react-hot-toast';
 import { User, Mail, Phone, Calendar, MapPin, BookOpen, GraduationCap, Edit } from 'lucide-react';
+import { formatSemester, toRoman } from '../utils/semester';
 
 const StudentProfile = () => {
   const { user } = useAuth();
@@ -246,7 +247,7 @@ const StudentProfile = () => {
                 <BookOpen className="h-5 w-5 text-gray-400 mr-3 mt-0.5" />
                 <div>
                   <p className="text-sm text-gray-600">Semester</p>
-                  <p className="font-medium text-gray-900">Semester {student.semester}</p>
+                  <p className="font-medium text-gray-900">Semester {formatSemester(student.semester)}</p>
                 </div>
               </div>
 
@@ -409,7 +410,7 @@ const StudentProfile = () => {
                   >
                     <option value="">Select Semester</option>
                     {[1,2,3,4,5,6,7,8].map(sem => (
-                      <option key={sem} value={sem}>Semester {sem}</option>
+                      <option key={sem} value={sem}>Semester {toRoman(sem)}</option>
                     ))}
                   </select>
                 </div>

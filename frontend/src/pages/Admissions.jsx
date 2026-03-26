@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { CheckCircle, XCircle, Clock, Edit, Trash2 } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Edit, Trash2, Download, Search } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { exportToCsv } from '../utils/csv';
 
 const Admissions = () => {
   const { user } = useAuth();
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingApp, setEditingApp] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
@@ -87,6 +89,45 @@ const Admissions = () => {
     return styles[status] || styles.pending;
   };
 
+  const filteredApplications = applications.filter((app) => {
+    const query = searchTerm.toLowerCase().trim();
+    if (!query) return true;
+    const fullName = `${app.firstName || ''} ${app.lastName || ''}`.toLowerCase();
+    return (
+      fullName.includes(query) ||
+      (app.email || '').toLowerCase().includes(query) ||
+      (app.phone || '').toLowerCase().includes(query) ||
+      (app.department || '').toLowerCase().includes(query)
+    );
+  });
+
+  const handleExportAdmissions = () => {
+    if (filteredApplications.length === 0) {
+      toast.error('No applications to export');
+      return;
+    }
+
+    const rows = filteredApplications.map((app) => ({
+      name: `${app.firstName || ''} ${app.lastName || ''}`.trim(),
+      email: app.email || '',
+      phone: app.phone || '',
+      department: app.department || '',
+      previousPercentage: app.previousPercentage ?? '',
+      status: app.status || '',
+      appliedOn: app.applicationDate ? new Date(app.applicationDate).toLocaleDateString() : ''
+    }));
+
+    exportToCsv('admissions_export.csv', rows, [
+      { key: 'name', label: 'Name' },
+      { key: 'email', label: 'Email' },
+      { key: 'phone', label: 'Phone' },
+      { key: 'department', label: 'Department' },
+      { key: 'previousPercentage', label: 'Previous %' },
+      { key: 'status', label: 'Status' },
+      { key: 'appliedOn', label: 'Applied On' }
+    ]);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -97,9 +138,9 @@ const Admissions = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Admission Applications</h1>
-        <div className="flex space-x-2">
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={() => setFilter('all')}
             className={`px-4 py-2 rounded-lg ${filter === 'all' ? 'bg-blue-500 text-white' : 'bg-gray-100'}`}
@@ -127,8 +168,29 @@ const Admissions = () => {
         </div>
       </div>
 
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative w-full sm:max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
+          <input
+            type="text"
+            placeholder="Search name, email, phone, department..."
+            className="input-field pl-10"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        <button
+          type="button"
+          onClick={handleExportAdmissions}
+          className="btn-secondary flex items-center justify-center gap-2"
+        >
+          <Download className="h-4 w-4" />
+          Export CSV
+        </button>
+      </div>
+
       <div className="grid grid-cols-1 gap-6">
-        {applications.map((app) => (
+        {filteredApplications.map((app) => (
           <div key={app._id} className="card">
             <div className="flex justify-between items-start mb-4">
               <div>
@@ -223,7 +285,7 @@ const Admissions = () => {
           </div>
         ))}
 
-        {applications.length === 0 && (
+        {filteredApplications.length === 0 && (
           <div className="text-center py-12">
             <Clock className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-600">No applications found</p>

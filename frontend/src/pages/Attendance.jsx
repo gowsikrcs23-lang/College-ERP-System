@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Users, Check, X, Clock } from 'lucide-react';
+import { Users, Check, X, Clock, Download } from 'lucide-react';
 import { attendanceAPI, studentsAPI, facultyAPI, classFacultyAPI } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import { formatSemester, toRoman } from '../utils/semester';
+import { exportToCsv } from '../utils/csv';
 import toast from 'react-hot-toast';
 
 const formatAttendanceStatus = (status) => {
@@ -48,6 +50,7 @@ const StaffAttendanceView = () => {
   const { user } = useAuth();
   const isFaculty = user?.role === 'faculty';
   const canAssignClassFaculty = ['admin', 'management', 'hod'].includes(user?.role);
+  const showRequestMenu = ['faculty', 'management'].includes(user?.role);
   const [students, setStudents] = useState([]);
   const [attendanceHistory, setAttendanceHistory] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -57,6 +60,8 @@ const StaffAttendanceView = () => {
   const [myRequests, setMyRequests] = useState([]);
   const [myRequestsLoading, setMyRequestsLoading] = useState(false);
   const [myRequestsError, setMyRequestsError] = useState('');
+  const [activeAttendanceTab, setActiveAttendanceTab] = useState('requests');
+  const [historySearch, setHistorySearch] = useState('');
   const [facultyList, setFacultyList] = useState([]);
   const [classFacultyId, setClassFacultyId] = useState('');
   const [assigning, setAssigning] = useState(false);
@@ -314,6 +319,52 @@ const StaffAttendanceView = () => {
     od: Object.values(attendanceData).filter(s => s === 'od').length
   };
 
+  const filteredAttendanceHistory = attendanceHistory.filter((record) => {
+    const query = historySearch.toLowerCase().trim();
+    if (!query) return true;
+    const studentName = `${record.student?.firstName || ''} ${record.student?.lastName || ''}`.toLowerCase();
+    const studentId = (record.student?.studentId || record.student?.fn || '').toLowerCase();
+    const status = (record.status || '').toLowerCase();
+    const session = (record.session || '').toLowerCase();
+    const date = record.date ? new Date(record.date).toLocaleDateString().toLowerCase() : '';
+    return (
+      studentName.includes(query) ||
+      studentId.includes(query) ||
+      status.includes(query) ||
+      session.includes(query) ||
+      date.includes(query)
+    );
+  });
+
+  const handleExportHistory = () => {
+    if (filteredAttendanceHistory.length === 0) {
+      toast.error('No attendance history to export');
+      return;
+    }
+
+    const rows = filteredAttendanceHistory.map((record) => ({
+      date: record.date ? new Date(record.date).toLocaleDateString() : '',
+      student: `${record.student?.firstName || ''} ${record.student?.lastName || ''}`.trim(),
+      studentId: record.student?.studentId || record.student?.fn || '',
+      session: record.session || '',
+      status: formatAttendanceStatus(record.status),
+      markedBy: record.faculty ? `${record.faculty.firstName} ${record.faculty.lastName}` : '',
+      requestedBy: record.requestedByName || record.requestedBy?.email || '',
+      markedAt: record.updatedAt ? new Date(record.updatedAt).toLocaleString() : ''
+    }));
+
+    exportToCsv('attendance_history.csv', rows, [
+      { key: 'date', label: 'Date' },
+      { key: 'student', label: 'Student' },
+      { key: 'studentId', label: 'Student ID' },
+      { key: 'session', label: 'Session' },
+      { key: 'status', label: 'Status' },
+      { key: 'markedBy', label: 'Marked By' },
+      { key: 'requestedBy', label: 'Requested By' },
+      { key: 'markedAt', label: 'Marked At' }
+    ]);
+  };
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">Submit Attendance</h1>
@@ -342,7 +393,7 @@ const StaffAttendanceView = () => {
             >
               <option value="">Select Semester</option>
               {[1,2,3,4,5,6,7,8].map(sem => (
-                <option key={sem} value={sem}>Sem {sem} (S{sem})</option>
+                <option key={sem} value={sem}>Sem {toRoman(sem)} (S{toRoman(sem)})</option>
               ))}
             </select>
 
@@ -489,197 +540,253 @@ const StaffAttendanceView = () => {
         </form>
       </div>
 
-      {/* My Attendance Requests */}
-      <div className="card">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">My Attendance Requests</h3>
-        {myRequestsLoading ? (
-          <p className="text-sm text-gray-500">Loading your requests...</p>
-        ) : myRequestsError ? (
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-            <p className="text-sm text-gray-500">{myRequestsError}</p>
+      {showRequestMenu && (
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-2 border-b border-gray-200">
             <button
               type="button"
-              onClick={fetchMyRequests}
-              className="px-3 py-1.5 text-sm rounded bg-gray-100 text-gray-700 hover:bg-gray-200"
+              onClick={() => setActiveAttendanceTab('requests')}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${
+                activeAttendanceTab === 'requests'
+                  ? 'border-b-2 border-primary-600 text-primary-700'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
             >
-              Retry
+              Attendance Requests
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveAttendanceTab('history')}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${
+                activeAttendanceTab === 'history'
+                  ? 'border-b-2 border-primary-600 text-primary-700'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Attendance History
             </button>
           </div>
-        ) : myRequests.length === 0 ? (
-          <p className="text-sm text-gray-500">No attendance requests sent yet.</p>
-        ) : (
-          <div className="space-y-3">
-            {myRequests.map((request) => (
-              <div key={request._id} className="border rounded-lg p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                <div>
-                  <p className="text-sm text-gray-500">
-                    {new Date(request.date).toLocaleDateString()} | {request.session} | {request.department} - Sem {request.semester}
-                  </p>
-                  <p className="text-sm text-gray-700">
-                    Class Faculty: {request.assignedFaculty?.firstName ? `${request.assignedFaculty.firstName} ${request.assignedFaculty.lastName}` : 'Assigned'}
-                    {request.assignedFaculty?.facultyId ? ` (${request.assignedFaculty.facultyId})` : ''}
-                  </p>
-                  {request.status === 'approved' && (
-                    <p className="text-sm text-green-700">
-                      Approved by {request.approvedByName || 'Faculty'}{request.approvedByFacultyId ? ` (${request.approvedByFacultyId})` : ''} on {request.approvedAt ? new Date(request.approvedAt).toLocaleString() : '-'}
-                    </p>
-                  )}
-                  {request.status === 'rejected' && (
-                    <p className="text-sm text-red-700">
-                      Rejected by {request.rejectedByName || 'Faculty'}{request.rejectedByFacultyId ? ` (${request.rejectedByFacultyId})` : ''} on {request.rejectedAt ? new Date(request.rejectedAt).toLocaleString() : '-'}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
-                    request.status === 'approved'
-                      ? 'bg-green-100 text-green-800'
-                      : request.status === 'rejected'
-                      ? 'bg-red-100 text-red-800'
-                      : 'bg-yellow-100 text-yellow-800'
-                  }`}>
-                    {request.status}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
 
-      {/* Pending Requests (Faculty) */}
-      {isFaculty && (
-        <div className="card">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Pending Attendance Requests</h3>
-          {requestLoading ? (
-            <p className="text-sm text-gray-500">Loading requests...</p>
-          ) : requestError ? (
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-              <p className="text-sm text-gray-500">{requestError}</p>
-              <button
-                type="button"
-                onClick={fetchPendingRequests}
-                className="px-3 py-1.5 text-sm rounded bg-gray-100 text-gray-700 hover:bg-gray-200"
-              >
-                Retry
-              </button>
-            </div>
-          ) : pendingRequests.length === 0 ? (
-            <p className="text-sm text-gray-500">No pending requests.</p>
-          ) : (
-            <div className="space-y-3">
-              {pendingRequests.map((request) => (
-                <div key={request._id} className="border rounded-lg p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                  <div>
-                    <p className="text-sm text-gray-500">
-                      {new Date(request.date).toLocaleDateString()} | {request.session} | {request.department} - Sem {request.semester}
-                    </p>
-                    <p className="text-sm text-gray-700">
-                      Requested By: {request.requestedBy?.email || 'Staff'} ({request.requestedBy?.role || 'staff'})
-                    </p>
-                    <p className="text-sm text-gray-500">Students: {request.students?.length || 0}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
+          {activeAttendanceTab === 'requests' && (
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <div className="card">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">My Attendance Requests</h3>
+                {myRequestsLoading ? (
+                  <p className="text-sm text-gray-500">Loading your requests...</p>
+                ) : myRequestsError ? (
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                    <p className="text-sm text-gray-500">{myRequestsError}</p>
                     <button
                       type="button"
-                      onClick={() => handleApproveRequest(request._id)}
-                      className="px-3 py-1.5 text-sm rounded bg-green-600 text-white hover:bg-green-700"
+                      onClick={fetchMyRequests}
+                      className="px-3 py-1.5 text-sm rounded bg-gray-100 text-gray-700 hover:bg-gray-200"
                     >
-                      Approve
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleRejectRequest(request._id)}
-                      className="px-3 py-1.5 text-sm rounded bg-red-600 text-white hover:bg-red-700"
-                    >
-                      Reject
+                      Retry
                     </button>
                   </div>
+                ) : myRequests.length === 0 ? (
+                  <p className="text-sm text-gray-500">No attendance requests sent yet.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {myRequests.map((request) => (
+                      <div key={request._id} className="border rounded-lg p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                        <div>
+                          <p className="text-sm text-gray-500">
+                            {new Date(request.date).toLocaleDateString()} | {request.session} | {request.department} - Sem {formatSemester(request.semester)}
+                          </p>
+                          <p className="text-sm text-gray-700">
+                            Class Faculty: {request.assignedFaculty?.firstName ? `${request.assignedFaculty.firstName} ${request.assignedFaculty.lastName}` : 'Assigned'}
+                            {request.assignedFaculty?.facultyId ? ` (${request.assignedFaculty.facultyId})` : ''}
+                          </p>
+                          {request.status === 'approved' && (
+                            <p className="text-sm text-green-700">
+                              Approved by {request.approvedByName || 'Faculty'}{request.approvedByFacultyId ? ` (${request.approvedByFacultyId})` : ''} on {request.approvedAt ? new Date(request.approvedAt).toLocaleString() : '-'}
+                            </p>
+                          )}
+                          {request.status === 'rejected' && (
+                            <p className="text-sm text-red-700">
+                              Rejected by {request.rejectedByName || 'Faculty'}{request.rejectedByFacultyId ? ` (${request.rejectedByFacultyId})` : ''} on {request.rejectedAt ? new Date(request.rejectedAt).toLocaleString() : '-'}
+                            </p>
+                          )}
+                        </div>
+                        <div>
+                          <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
+                            request.status === 'approved'
+                              ? 'bg-green-100 text-green-800'
+                              : request.status === 'rejected'
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {request.status}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {isFaculty && (
+                <div className="card">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Pending Attendance Requests</h3>
+                  {requestLoading ? (
+                    <p className="text-sm text-gray-500">Loading requests...</p>
+                  ) : requestError ? (
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                      <p className="text-sm text-gray-500">{requestError}</p>
+                      <button
+                        type="button"
+                        onClick={fetchPendingRequests}
+                        className="px-3 py-1.5 text-sm rounded bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  ) : pendingRequests.length === 0 ? (
+                    <p className="text-sm text-gray-500">No pending requests.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {pendingRequests.map((request) => (
+                        <div key={request._id} className="border rounded-lg p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                          <div>
+                            <p className="text-sm text-gray-500">
+                              {new Date(request.date).toLocaleDateString()} | {request.session} | {request.department} - Sem {formatSemester(request.semester)}
+                            </p>
+                            <p className="text-sm text-gray-700">
+                              Requested By: {request.requestedBy?.email || 'Staff'} ({request.requestedBy?.role || 'staff'})
+                            </p>
+                            <p className="text-sm text-gray-500">Students: {request.students?.length || 0}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleApproveRequest(request._id)}
+                              className="px-3 py-1.5 text-sm rounded bg-green-600 text-white hover:bg-green-700"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRejectRequest(request._id)}
+                              className="px-3 py-1.5 text-sm rounded bg-red-600 text-white hover:bg-red-700"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              ))}
+              )}
             </div>
           )}
         </div>
       )}
 
       {/* Attendance History */}
-      {formData.department && formData.semester && attendanceHistory.length > 0 && (
+      {(!showRequestMenu || activeAttendanceTab === 'history') && formData.department && formData.semester && (
         <div className="card">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Attendance History</h3>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Session</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Marked By</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Requested By</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Marked At</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Update</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {attendanceHistory.map((record) => {
-                  const canUpdateRecord = user?.role && user.role !== 'student';
-                  return (
-                  <tr key={record._id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {new Date(record.date).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {record.student?.firstName} {record.student?.lastName}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 capitalize">
-                      {record.session}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {record.faculty ? `${record.faculty.firstName} ${record.faculty.lastName}` : 'N/A'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {record.requestedByName
-                        || record.requestedBy?.email
-                        || (record.faculty ? `${record.faculty.firstName} ${record.faculty.lastName} (Self)` : 'N/A')}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {new Date(record.updatedAt).toLocaleString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getAttendanceBadgeClass(record.status)}`}>
-                        {formatAttendanceStatus(record.status)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
-                      {canUpdateRecord ? (
-                        <>
-                          <select
-                            className="border border-gray-300 rounded-md px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            value={(record.status || '').toLowerCase()}
-                            onChange={(e) => handleUpdateAttendance(record._id, e.target.value)}
-                            aria-label="Update attendance status"
-                          >
-                            <option value="present">Present</option>
-                            <option value="absent">Absent</option>
-                            <option value="od">OD (On Duty)</option>
-                          </select>
-                          <button
-                            onClick={() => handleDeleteAttendance(record._id)}
-                            className="text-red-600 hover:text-red-800"
-                          >
-                            Delete
-                          </button>
-                        </>
-                      ) : (
-                        <span className="text-xs text-gray-500">Only class faculty can update</span>
-                      )}
-                    </td>
-                  </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h3 className="text-lg font-medium text-gray-900">Attendance History</h3>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+              <input
+                type="text"
+                className="input-field sm:max-w-xs"
+                placeholder="Search name, ID, status..."
+                value={historySearch}
+                onChange={(e) => setHistorySearch(e.target.value)}
+              />
+              <button
+                type="button"
+                onClick={handleExportHistory}
+                className="btn-secondary flex items-center justify-center gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Export CSV
+              </button>
+            </div>
           </div>
+          {attendanceHistory.length === 0 ? (
+            <p className="text-sm text-gray-500 mt-3">No attendance history available for the selected class.</p>
+          ) : filteredAttendanceHistory.length === 0 ? (
+            <p className="text-sm text-gray-500 mt-3">No attendance records match your search.</p>
+          ) : (
+            <div className="overflow-x-auto mt-3">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Session</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Marked By</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Requested By</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Marked At</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Update</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredAttendanceHistory.map((record) => {
+                    const canUpdateRecord = user?.role && user.role !== 'student';
+                    return (
+                    <tr key={record._id}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {new Date(record.date).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {record.student?.firstName} {record.student?.lastName}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 capitalize">
+                        {record.session}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {record.faculty ? `${record.faculty.firstName} ${record.faculty.lastName}` : 'N/A'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {record.requestedByName
+                          || record.requestedBy?.email
+                          || (record.faculty ? `${record.faculty.firstName} ${record.faculty.lastName} (Self)` : 'N/A')}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        {new Date(record.updatedAt).toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getAttendanceBadgeClass(record.status)}`}>
+                          {formatAttendanceStatus(record.status)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
+                        {canUpdateRecord ? (
+                          <>
+                            <select
+                              className="border border-gray-300 rounded-md px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              value={(record.status || '').toLowerCase()}
+                              onChange={(e) => handleUpdateAttendance(record._id, e.target.value)}
+                              aria-label="Update attendance status"
+                            >
+                              <option value="present">Present</option>
+                              <option value="absent">Absent</option>
+                              <option value="od">OD (On Duty)</option>
+                            </select>
+                            <button
+                              onClick={() => handleDeleteAttendance(record._id)}
+                              className="text-red-600 hover:text-red-800"
+                            >
+                              Delete
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-xs text-gray-500">Only class faculty can update</span>
+                        )}
+                      </td>
+                    </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -707,6 +814,31 @@ const StudentAttendanceView = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleExportMyAttendance = () => {
+    if (attendance.length === 0) {
+      toast.error('No attendance records to export');
+      return;
+    }
+
+    const rows = attendance.map((record) => ({
+      date: record.date ? new Date(record.date).toLocaleDateString() : '',
+      session: record.session || '',
+      time: record.session === 'morning' ? '8:45 AM - 12:20 PM' : '1:25 PM - 4:25 PM',
+      markedAt: record.createdAt ? new Date(record.createdAt).toLocaleString() : '',
+      status: formatAttendanceStatus(record.status),
+      markedBy: record.faculty ? `${record.faculty.firstName} ${record.faculty.lastName}` : ''
+    }));
+
+    exportToCsv('my_attendance.csv', rows, [
+      { key: 'date', label: 'Date' },
+      { key: 'session', label: 'Session' },
+      { key: 'time', label: 'Time' },
+      { key: 'markedAt', label: 'Marked At' },
+      { key: 'status', label: 'Status' },
+      { key: 'markedBy', label: 'Marked By' }
+    ]);
   };
 
   if (loading) {
@@ -745,7 +877,17 @@ const StudentAttendanceView = () => {
       </div>
 
       <div className="card">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Attendance Records</h3>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+          <h3 className="text-lg font-medium text-gray-900">Attendance Records</h3>
+          <button
+            type="button"
+            onClick={handleExportMyAttendance}
+            className="btn-secondary flex items-center justify-center gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Export CSV
+          </button>
+        </div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -847,6 +989,30 @@ const AdminAttendanceView = () => {
     }
   };
 
+  const handleExportSelectedAttendance = () => {
+    if (!selectedStudent || attendance.length === 0) {
+      toast.error('No attendance records to export');
+      return;
+    }
+
+    const rows = attendance.map((record) => ({
+      date: record.date ? new Date(record.date).toLocaleDateString() : '',
+      session: record.session || '',
+      time: record.session === 'morning' ? '8:45 AM - 12:20 PM' : '1:25 PM - 4:25 PM',
+      markedAt: record.updatedAt ? new Date(record.updatedAt).toLocaleString() : '',
+      status: formatAttendanceStatus(record.status)
+    }));
+
+    const safeName = `${selectedStudent.firstName || ''}_${selectedStudent.lastName || ''}`.trim() || 'student';
+    exportToCsv(`${safeName}_attendance.csv`, rows, [
+      { key: 'date', label: 'Date' },
+      { key: 'session', label: 'Session' },
+      { key: 'time', label: 'Time' },
+      { key: 'markedAt', label: 'Marked At' },
+      { key: 'status', label: 'Status' }
+    ]);
+  };
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">Student Attendance</h1>
@@ -872,7 +1038,7 @@ const AdminAttendanceView = () => {
                 className="p-4 border rounded-lg hover:bg-gray-50 cursor-pointer"
               >
                 <p className="font-medium">{student.firstName} {student.lastName}</p>
-                <p className="text-sm text-gray-600">FN: {student.fn} | {student.department} | Sem {student.semester}</p>
+                <p className="text-sm text-gray-600">FN: {student.fn} | {student.department} | Sem {formatSemester(student.semester)}</p>
               </div>
             ))}
           </div>
@@ -910,7 +1076,17 @@ const AdminAttendanceView = () => {
           </div>
 
           <div className="card">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Attendance Records</h3>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+              <h3 className="text-lg font-medium text-gray-900">Attendance Records</h3>
+              <button
+                type="button"
+                onClick={handleExportSelectedAttendance}
+                className="btn-secondary flex items-center justify-center gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Export CSV
+              </button>
+            </div>
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
