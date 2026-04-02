@@ -64,7 +64,7 @@ function AppContent() {
           
           <Route path="/profile" element={
             <ProtectedRoute allowedRoles={['student', 'admin', 'management', 'faculty', 'accountant', 'hod']}>
-              <Layout>
+               <Layout>
                 <StudentProfile />
               </Layout>
             </ProtectedRoute>
